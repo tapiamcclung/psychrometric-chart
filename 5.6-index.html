@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychrometric Chart 5.6</title>
+    <!-- JavaScript libraries -->
+    <script type="text/javascript" src="./libraries/d3.min.js"></script>
+    <!-- epw data → json -->
+    <script type="text/javascript" src="./jscripts/epwJson.js"></script>
+    <!-- Styles  -->
+    <style>
+      body {
+        background: rgba(130, 185, 187, 0.2);
+      }
+
+      h1, h2 {
+        text-align: center;
+        font-family: 'Trebuchet MS';
+      }
+      label {
+        font-family: 'Trebuchet MS';
+        font-size: larger;  
+      }
+      .chartCard {
+        height: calc(90vh - 40px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .chartBox {
+        width: 900px;
+        padding: 20px;
+        border-radius: 10px;
+        border: double 3px rgb(52, 142, 202);
+        background: white;
+      }
+    </style>
+  </head>
+
+
+  <body>
+    <div> <h1>Psychrometric Chart 5.6</h1> </div>
+    
+    <div>
+      <label>Seleccione un archivo .epw:</label>
+      <input type="file" id="fileinput" style="width: 200px;">
+    </div>
+    
+    <div class="chartCard">
+      <div class="chartBox">
+        <h2 id="stationName"></h2>
+        <br>
+         <canvas id="psyChart"></canvas>
+        <br>
+        <button onclick="resetZoomChart()">Reset Zoom</button>
+      </div>
+    </div>
+
+    
+
+
+<!-- ----------------------------------------------------------- -->
+<!-- ---------------------- S C R I P T S ---------------------- -->
+<!-- ----------------------------------------------------------- -->
+
+  <!----- Add Chart.js ----->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
+  <!-- ZOOM PLUGIN --- from Chart.js -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.0/chartjs-plugin-zoom.min.js" integrity="sha512-B6F98QATBNaDHSE7uANGo5h0mU6fhKCUD+SPAY7KZDxE8QgZw9rewDtNiu3mbbutYDWOKT3SPYD8qDBpG2QnEg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js" integrity="sha512-wUYbRPLV5zs6IqvWd88HIqZU/b8TBx+I8LEioQ/UC0t5EMCLApqhIAnUg7EsAzdbhhdgW07TqYDdH3QEXRcPOQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    
+    // const ctx = document.getElementById('psyChart');
+    // let myChart = new Chart (ctx, {
+    
+    const ctx = document.getElementById('psyChart');
+
+    Chart.defaults.elements.point.pointStyle = 'rect';
+    Chart.defaults.elements.point.borderWidth = null;
+    Chart.defaults.elements.point.radius = 10;
+    Chart.defaults.plugins.legend.position = 'left';
+    // Chart.defaults.plugins.tooltip = false;
+
+    const labels1 = ['50'];
+
+    const data1 = {
+        datasets: [{
+            type: 'line', // ---------- 100% -----------
+            label: '100%',
+            data: [ {x:-100, y:3.7},
+                  {x:-20, y:0.64}, {x:-15, y:1.01}, {x:-10, y:1.59}, {x:-5, y:2.47}, {x:-4, y:2.68}, {x:-2, y:3.2},
+                  {x:0, y:3.7}, {x:5, y:5.2}, {x:10, y:7.5}, {x:15, y:10.5},
+                  {x:20, y:14.5}, {x:25, y:20}, {x:30, y:26.7}, {x:34.3, y:35},
+                  ], // curva 100% 
+            
+            // --- style line ---
+            backgroundColor: 'rgb(139, 142, 183, 0.5)',
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.3,
+            pointStyle: false,
+            borderWidth: 1.5,
+
+            // --------------- colorea cuadros arriba de la curva 100% ---------------
+            fill: { 
+              target: {
+                value: 100,
+              },
+              below: 'white',
+            },
+            },
+
+            { // ---------- 90% -----------
+            type: 'line',
+            label: '90%',
+            data: [
+                  {x:-20, y:0.57}, {x:-15, y:0.92}, {x:-10, y:1.44}, {x:-5, y:2.23}, {x:-4, y:2.42}, {x:-2, y:2.86}, 
+                  {x:0, y:3.4}, {x:2.5, y:4.05}, {x:5, y:4.8}, {x:10, y:6.8}, {x:15, y:9.6}, 
+                  {x:20, y:13.2}, {x:25, y:18.1}, {x:30, y:24.5}, {x:35, y:32.9}, {x:36.1, y:35},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+            
+            { // ---------- 80% -----------
+            type: 'line',
+            label: '80%',
+            data: [
+                  {x:-20, y:0.5}, {x:-15, y:0.81}, {x:-10, y:1.28}, {x:-5, y:2}, {x:-4, y:2.16}, {x:-2, y:2.55}, 
+                  {x:0, y:3}, {x:2.5, y:3.6}, {x:5, y:4.3}, {x:10, y:6.1}, {x:15, y:8.5}, 
+                  {x:20, y:11.7}, {x:25, y:16}, {x:30, y:21.7}, {x:38.07, y:35},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+            { // ---------- 70% -----------
+            type: 'line',
+            label: '70%',
+            data: [
+                  {x:-20, y:0.44}, {x:-15, y:1.71}, {x:-10, y:1.1}, {x:-5, y:1.73}, {x:-2, y:2.24},
+                  {x:0, y:2.7}, {x:2.5, y:3.2}, {x:5, y:3.8}, {x:10, y:5.3}, {x:15, y:7.4}, 
+                  {x:20, y:10.3}, {x:25, y:14.1}, {x:30, y:19}, {x:35, y:25.6}, {x:40, y:34.2}, {x:40.4, y:35},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+            { // ---------- 60% -----------
+            type: 'line',
+            label: '60%',
+            data: [
+                  {x:-20, y:0.38}, {x:-15, y:0.61}, {x:-10, y:0.96}, {x:-5, y:1.5}, {x:-4, y:1.62}, {x:-2, y:1.92},
+                  {x:0, y:2.3}, {x:2.5, y:2.7}, {x:5, y:3.3}, {x:10, y:4.6}, {x:15, y:6.4}, {x:20, y:8.8}, 
+                  {x:25, y:12.1}, {x:30, y:16.3}, {x:35, y:21.9}, {x:40, y:29.3}, {x:43.1, y:35},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+            { // ---------- 50% -----------
+            type: 'line',
+            label: '50%',
+            data: [
+                  {x:-20, y:0.32}, {x:-15, y:0.51}, {x:-10, y:0.8}, {x:-5, y:1.24}, {x:-4, y:1.35}, {x:-2, y:1.6},
+                  {x:0, y:1.9}, {x:2.5, y:2.3}, {x:5, y:2.7}, {x:10, y:3.8}, {x:15, y:5.3}, {x:20, y:7.4}, 
+                  {x:25, y:10.05}, {x:30, y:13.6}, {x:35, y:18.28}, {x:40, y:24.4}, {x:45, y:32.5}, {x:46.3, y:35},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+            { // ---------- 40% -----------
+              type: 'line',
+              label: '40%',
+              data: [
+                  {x:-20, y:0.26}, {x:-15, y:0.41}, {x:-10, y:0.64}, {x:-5, y:1}, {x:-4, y:1.08}, {x:-2, y:1.29},
+                  {x:0, y:1.5}, {x:2.5, y:1.9}, {x:5, y:2.2}, {x:10, y:3.1}, {x:15, y:4.3}, {x:20, y:5.9}, 
+                  {x:25, y:8.05}, {x:30, y:10.87}, {x:35, y:14.6}, {x:40, y:19.55}, {x:45, y:26}, {x:50, y:34.5},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+            { // ---------- 30% -----------
+            type: 'line',
+            label: '30%',
+            data: [
+                  {x:-20, y:0.19}, {x:-15, y:0.31}, {x:-10, y:0.48}, {x:-5, y:0.74}, {x:-4, y:0.8}, {x:-2, y:0.96},
+                  {x:0, y:1.2}, {x:2.5, y:1.4}, {x:5, y:1.6}, {x:10, y:2.3}, {x:15, y:3.2}, {x:20, y:4.4}, 
+                  {x:25, y:6.05}, {x:30, y:8.2}, {x:35, y:10.95}, {x:40, y:14.6}, {x:45, y:19.5}, {x:50, y:25.9},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+            { // ---------- 20% -----------
+            type: 'line',
+            label: '20%',
+            data: [
+                  {x:-20, y:0.13}, {x:-15, y:0.21}, {x:-10, y:0.32}, {x:-5, y:0.49}, {x:-4, y:0.54}, {x:-2, y:0.64},
+                  {x:0, y:0.8}, {x:2.5, y:0.9}, {x:5, y:1.1}, {x:10, y:1.5}, {x:15, y:2.1}, {x:20, y:2.9}, 
+                  {x:25, y:4}, {x:30, y:5.4}, {x:35, y:7.3}, {x:40, y:9.8}, {x:45, y:13}, {x:50, y:17.3},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+            { // ---------- 10% -----------
+            type: 'line',
+            label: '10%',
+            data: [ 
+                  {x:-20, y:0.07}, {x:-15, y:0.1}, {x:-10, y:0.16}, {x:-5, y:0.25}, {x:-4, y:0.27}, {x:-2, y:0.32}, 
+                  {x:0, y:0.4}, {x:2.5, y:0.5}, {x:5, y:0.6}, {x:10, y:0.8}, {x:15, y:1.1}, {x:20, y:1.5}, 
+                  {x:25, y:2}, {x:30, y:2.7}, {x:35, y:3.6}, {x:40, y:4.9}, {x:45, y:6.5}, {x:50, y:8.63},
+                  ],
+            // --- style line ---
+            borderColor: 'rgb(139, 142, 183, 0.5)',
+            tension: 0.4,
+            pointStyle: false,
+            borderWidth: 1.2,
+            borderDash: [2,2],
+            },
+
+
+
+            
+          // ----------------------------- DIFERENTE GRÁFICO -----------------------------
+          // -------------- add psychrometric data ---- .csv -- or -- .epw ---------------
+            {
+            type: 'scatter',
+            backgroundColor: 'rgb(25, 100, 285)',
+            borderColor: 'rgb(25, 100, 285)',
+            data: [ 
+                  {x:15, y:5}, {x:24, y:8}, {x:28, y:22},
+                  {x:30, y:23}, {x:31, y:23},
+                  ], 
+            }
+        ],
+    };
+
+
+    const myChart = new Chart(ctx, {
+        type: 'scatter',
+        data: data1,
+        labels: labels1,
+        options: {
+            scales: {
+                x: {
+                    min: -10,
+                    max: 50,
+                    ticks: {stepSize: 5},
+                    title: { 
+                      display: true,
+                      text: 'Temperatura de Bulbo Seco (°C)',
+                    },
+                },
+                y: {
+                    min: 0,
+                    max: 35,
+                    position: 'right',
+                    ticks: {stepSize: 5},
+                    grid:{display:true},
+                    title: {
+                      display: true,
+                      text: 'Humedad Absoluta (g/kg)',
+                    },
+                },
+            },
+
+          plugins: {
+            zoom: {
+              pan: {
+                enabled: true,
+                mode: 'xy',
+              },
+              zoom: {
+                wheel: {
+                  enabled: true,
+                },
+                pinch: {
+                  enabled: true,
+                },
+              },
+            }
+          },
+        }, //options
+    });
+
+
+    
+    // ----- RESET ZOOM BUTTON -----
+    function resetZoomChart(){
+      myChart.resetZoom();
+    }
+
+
+// --------------------------------- READ FILE ---------------------------------
+// código extraido de la pag: https://web.dev/articles/read-files?hl=es
+
+    function readSingleFile(file) {
+        var f = file;
+        if (f) {
+          var r = new FileReader();
+        r.onloadstart = function(e) {
+            document.getElementById('fileinput').innerHTML = "parsing file...";
+        };
+          r.onload = function(e) { // lo lee como archivo
+            var contents = e.target.result;
+            var raw = r.result;
+            
+            epw = epwJson(raw); // parsea el archivo epw de json object
+            
+        console.log(epw); // monitoreo de archivos en consola
+
+        document.getElementById('stationName').innerHTML = "Chart for " + epw.stationLocation;
+        document.getElementById('year').innerHTML = "Año: " + epw.year;
+        };
+          r.readAsText(f);
+        } else { 
+          alert("Failed to load file");
+        }
+    };
+
+    fileInput = document.getElementById('fileinput'); //obtiene el archivo
+      
+    fileInput.onchange = function(evt) {
+      readSingleFile(evt.target.files[0]);
+    };  
+
+
+  </script>
+</body>
+</html>
