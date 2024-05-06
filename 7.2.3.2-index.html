@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart 7.2.3.2</title>
+    <style>
+        body {
+            font-family: "Segoe UI";
+       }
+
+        #chartdiv {
+            width: 50%;
+            height: 700px;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    
+    <h1> 7.2.3.2 </h1>
+    <div id="chartdiv"></div>
+
+
+
+<!-- --------------------------------------------------------------- -->
+<!-- ------------------------ S C R I P T S ------------------------ -->
+<!-- --------------------------------------------------------------- -->
+    
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+ <script>
+
+    // Data Lines 100% - 10% 
+    const porcentajes = [{
+        ax: 0, ay: 0.4,     // 10%
+        bx: 0, by: 0.8,     // 20%
+        cx: 0, cy: 1.2,     // 30%
+        dx: 0, dy: 1.5,     // 40%
+        ex: 0, ey: 1.9,     // 50%
+
+        fx: 0, fy: 2.3,     // 60%
+        gx: 0, gy: 2.7,     // 70%
+        hx: 0, hy: 3,       // 80%
+        ix: 0, iy: 3.4,     // 90%
+        jx: 0, jy: 3.7,     // COLOR FILL 100%
+    },
+    {
+        ax: 25, ay: 2,      // 10%
+        bx: 25, by: 4,      // 20%
+        cx: 25, cy: 6.05,   // 30%
+        dx: 25, dy: 8.05,   // 40%
+        ex: 25, ey: 10.05,  // 50%
+
+        fx: 25, fy: 12.1,   // 60%
+        gx: 25, gy: 14.1,   // 70%
+        hx: 25, hy: 16,     // 80%
+        ix: 25, iy: 18.1,   // 90%
+        jx: 25, jy: 20,     // 100%
+    },
+    {
+        ax: 40, ay: 4.9,    // 10%
+        bx: 40, by: 9.8,    // 20%
+        cx: 40, cy: 14.6,   // 30%
+        dx: 40, dy: 19.55,  // 40%
+        ex: 40, ey: 24.4,   // 50%
+        
+        fx: 40, fy: 29.3,   // 60%
+        gx: 35, gy: 25.6,   // 70%
+        hx: 35, hy: 29.25,  // 80%
+        ix: 35, iy: 32.9,   // 90%
+        jx: 30, jy: 26.7,   // 100%
+    },
+    {
+        ax: 50, ay: 8.6,     // 10%
+        bx: 50, by: 17.3,    // 20%
+        cx: 50, cy: 25.9,    // 30%
+        dx: 50, dy: 34.5,    // 40%
+        ex: 46.3, ey: 35,    // 50%
+
+        fx: 43.1, fy: 35,    // 60%
+        gx: 40.4, gy: 35,    // 70%
+        hx: 38.07, hy: 35,   // 80%
+        ix: 36.1, iy: 35,    // 90%
+        jx: 34.3, jy: 35,    // 100%
+    }
+    ];
+
+
+
+    // Create root element      
+    // https://www.amcharts.com/docs/v5/getting-started/#Root_element
+    let root = am5.Root.new("chartdiv");
+
+
+
+    // Set themes       // https://www.amcharts.com/docs/v5/concepts/themes/
+    root.setThemes([
+    am5themes_Animated.new(root)
+    ]);
+
+
+    
+    // Create chart     // https://www.amcharts.com/docs/v5/charts/xy-chart/
+    let chart = root.container.children.push(
+        am5xy.XYChart.new(root, {
+            panX: true,     // CUSTOM ZOOM and PAN
+            panY: true,
+            wheelX: "panX",
+            wheelY: "zoomXY",
+            layout: root.verticalLayout,
+            paddingLeft: 5,
+            paddingRight: 5,
+    })
+    );
+
+
+
+    // Establecer colores
+    chart.set("colors", am5.ColorSet.new(root, {
+      step: 1,
+      colors: [
+        am5.color(0xF2AA6B),
+        am5.color(0xffffff), // white
+      ]
+    }))
+    
+
+
+    // Create axes
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/axes/
+    let xAxis = chart.xAxes.push(
+    am5xy.ValueAxis.new(root, {
+        min: 0, // Custom min limit
+        max: 50, // Custom max limit
+        strictMinMax: true,
+        maxDeviation: 0,
+        renderer: am5xy.AxisRendererX.new(root, {
+        minGridDistance: 50
+        }),
+        tooltip: am5.Tooltip.new(root, {
+        themeTags: ["axis"],
+        animationDuration: 300
+        })
+    })
+    );
+
+
+    let yAxis = chart.yAxes.push(
+    am5xy.ValueAxis.new(root, {
+        min: 0, // Custom min limit
+        max: 35, // Custom max limit
+        strictMinMax: true,
+        maxDeviation: 0,
+        renderer: am5xy.AxisRendererY.new(root, {}),
+        tooltip: am5.Tooltip.new(root, {
+        themeTags: ["axis"],
+        animationDuration: 300
+        })
+    })
+    );
+    
+    
+
+
+    // CREATE SERIES (curva %)
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/series/
+
+    ///////////////////////// 10% ///////////////////////
+    let series10 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "ay",
+            valueXField: "ax",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series10.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+
+    ///////////////////////// 20% ///////////////////////
+    let series20 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "by",
+            valueXField: "bx",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series20.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+
+    ///////////////////////// 30% ///////////////////////
+    let series30 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "cy",
+            valueXField: "cx",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series30.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+
+    ///////////////////////// 40% ///////////////////////
+    let series40 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "dy",
+            valueXField: "dx",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series40.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+
+    ///////////////////////// 50% ///////////////////////
+    let series50 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "ey",
+            valueXField: "ex",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series50.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+    
+    ///////////////////////// 60% ///////////////////////
+    let series60 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "fy",
+            valueXField: "fx",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series60.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+
+    ///////////////////////// 70% ///////////////////////
+    let series70 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "gy",
+            valueXField: "gx",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series70.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+
+    ///////////////////////// 80% ///////////////////////
+    let series80 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "hy",
+            valueXField: "hx",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series80.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+
+    ///////////////////////// 90% ///////////////////////
+    let series90 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "iy",
+            valueXField: "ix",
+            baseAxis: xAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series90.strokes.template.setAll({
+            strokeDasharray: [3, 2],
+            strokeWidth: 1,
+            strokeOpacity: 0.7,
+    });
+
+    
+    /////////////////////// 100% ///////////////////////
+    let series100 = chart.series.push(
+        am5xy.SmoothedXLineSeries.new(root, {  // SmoothedXLineSeries - hace línea curva
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "jy",
+            valueXField: "jx",
+            baseAxis: yAxis,
+            stroke: am5.color(0x767d84), // Color Line
+            tooltip: am5.Tooltip.new(root, {
+            labelText: "x:{valueX}, y:{valueY}"
+            })
+        })
+    );
+    // ----- Line Style -----
+    series100.strokes.template.setAll({
+       strokeWidth: 1.5, 
+       strokeOpacity: 0.7,
+    });
+    // ----- Fill Space -----
+    series100.fills.template.setAll({
+        fillOpacity: 5,
+        visible: true,
+    });
+
+
+
+
+    series10.data.setAll(porcentajes);
+    series20.data.setAll(porcentajes);
+    series30.data.setAll(porcentajes);
+    series40.data.setAll(porcentajes);
+    series50.data.setAll(porcentajes);
+    series60.data.setAll(porcentajes);
+    series70.data.setAll(porcentajes);
+    series80.data.setAll(porcentajes);
+    series90.data.setAll(porcentajes);
+    series100.data.setAll(porcentajes);
+
+    // Make stuff animate on load
+    // https://www.amcharts.com/docs/v5/concepts/animations/
+    chart.appear(1000, 100);
+
+
+ // Add cursor
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/cursor/
+    // chart.set("cursor", am5xy.XYCursor.new(root, {
+    // xAxis: xAxis,
+    // yAxis: yAxis,
+    // snapToSeries: [series0, series1]
+    // }));
+
+    // Add scrollbars
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/scrollbars/
+    // chart.set("scrollbarX", am5.Scrollbar.new(root, {
+    // orientation: "horizontal"
+    // }));
+
+    // chart.set("scrollbarY", am5.Scrollbar.new(root, {
+    // orientation: "vertical"
+    // }));
+
+ </script>
+</body>
+</html>
