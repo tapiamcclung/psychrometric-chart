@@ -7,11 +7,12 @@
     <style>
         body {
             font-family: "Segoe UI";
+            height: 100%;
        }
 
         #chartdiv {
             width: 90%;
-            height: 700px;
+            height: calc(90vh - 30px);
             max-width: 100%;
             margin: auto;
         }
@@ -109,7 +110,7 @@
             strictMinMax: true,
             maxDeviation: 0,
             renderer: am5xy.AxisRendererX.new(root, {
-                minGridDistance: 50,
+                minGridDistance: 100,
                 minorGridEnabled: true,
                 stroke: am5.color(0x767d84),
                 strokeOpacity: 1,
@@ -183,7 +184,7 @@
     yRendererRH.grid.template.set("forceHidden", true);
     yRendererRH.labels.template.set("forceHidden", true);
 
-    function createRange(value, axis, label) {
+    const createRange = (value, axis, label) => {
         var rangeDataItem = axis.makeDataItem({
             value: value
         });
