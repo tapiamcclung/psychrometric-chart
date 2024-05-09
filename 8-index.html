@@ -123,6 +123,12 @@
         })
     );
 
+    xAxis.children.push(am5.Label.new(root, {
+        text: 'Dry Bulb Temperature (°C)',
+        textAlign: 'center',
+        x: am5.p50
+      }));
+
     let yAxis = chart.yAxes.push(
         am5xy.ValueAxis.new(root, {
             min: 0,
@@ -179,6 +185,14 @@
             }),
         })
     );
+
+    yAxisRH.children.push(am5.Label.new(root, {
+        //text: 'Absolute Humidity (g/kg)',
+        text: 'Relative Humidity',
+        textAlign: 'center',
+        y: am5.p50,
+        rotation: 90
+      }));
 
     let yRendererRH = yAxisRH.get("renderer");
     yRendererRH.grid.template.set("forceHidden", true);
