@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart 8.1</title>
+    <!-- JavaScript libraries -->
+    <script type="text/javascript" src="./libraries/d3.min.js"></script>
+    <!-- epw data → json -->
+    <script type="text/javascript" src="./jscripts/epwJson.js"></script>
+    <style>
+        body {
+            font-family: "Segoe UI";
+            height: 100%;
+       }
+
+        #chartdiv {
+            width: 90%;
+            height: calc(90vh - 30px);
+            max-width: 100%;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>8.1</h1>
+    <div>
+        <label>Seleccione un archivo .epw:</label>
+        <input type="file" id="fileinput" style="width: 200px;">
+    </div>
+    <div> <h2 id="stationName" style="text-align: center;"></h2> </div>
+    <div id="chartdiv"></div>
+
+    <script src="psychrolib.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+    <script>
+        const arrayRange = (start, stop, step) =>
+            Array.from(
+                { length: (stop - start) / step + 1 },
+                (value, index) => parseFloat((start + index * step).toFixed(1))
+            );
+
+        //function to get  psychro data
+        const get_psychroData = altitude => {
+            //temperature, rel. humidity array, altitude
+            //let dryBulb = [0,5,10,15,20,25,30,35,40,45,50];//oC
+            //let dryBulb = [ ...Array(100).keys() ].map( i => i+1);
+            let dryBulb = arrayRange(0, 50, 0.1);
+            //let wetBulb = [0,5,10,15,20,25,30,35,40,45,50];//oC
+            //let enthalpy = [0,20,40,60,80,100,120,140,160,180,200];//J/g dry Air
+            //let relativeHumidity = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1];//%
+            let relativeHumidity = arrayRange(0.1, 1, 0.1);
+
+            //call this function with an altitude value
+            if(altitude != 0){
+                altitude = altitude;
+            } else {
+                altitude = 0;
+            }
+
+            //Call psychrolib function
+            let psychrolib = new Psychrometrics();
+            //set unit system - SI
+            psychrolib.SetUnitSystem(psychrolib.SI);
+            //barometric pressure by altitude
+            pressure = psychrolib.GetStandardAtmPressure(altitude);
+
+            let data = [],
+                temp;
+
+            //###################### Relative Humidity Lines #################################
+            for (let [keyTemp, valueTemp] of Object.entries(dryBulb)) {
+                let currentData = {temp: valueTemp};
+
+                for (let [keyHumidity, valueHumidity] of Object.entries(relativeHumidity)) {
+                    rh = psychrolib.GetHumRatioFromRelHum(valueTemp, valueHumidity, pressure);
+                    currentData[`hum${parseInt(keyHumidity)+1}`] = rh*1000;
+                }
+                data.push(currentData);
+            }
+            //###################### Relative Humidity Lines #################################
+
+            return data;
+        }
+
+        // function to create series
+        const createSeries = (name, field, lineType) => {
+            let series = chart.series.push(
+                am5xy.SmoothedXLineSeries.new(root, {
+                    name: name,
+                    xAxis: xAxis,
+                    yAxis: yAxis,
+                    valueYField: field,
+                    valueXField: "temp",
+                    baseAxis: name == "100%" ? yAxis : xAxis,
+                    stroke: am5.color(0x767d84),
+                    fill: am5.color(0xffffff)
+                    //tooltip: am5.Tooltip.new(root, {})
+                })
+            );
+            if (name == "100%") {
+                baseAxis: yAxis,
+                series.strokes.template.setAll({
+                    strokeWidth: 1,
+                    strokeOpacity: 0.7,
+                });
+                series.fills.template.setAll({
+                    fillOpacity: 1,
+                    visible: true
+                });
+            } else {
+                series.strokes.template.setAll({
+                    strokeDasharray: [3, 2],
+                    strokeWidth: 1,
+                    strokeOpacity: 0.7,
+                });
+            }
+            series.data.setAll(psychroData);
+        }
+
+    let psychroData = get_psychroData(0);
+
+    // get temperature values where 40%-100% RH lines intersect with truncated axis
+    let limit40 = Object.values(psychroData.filter(k => k.temp == 50)[0]).filter( v => v != 50)[3];
+    let tempTicks = [5,6,7,8,9,10].map( rh => {
+        let minTemp = psychroData.filter(k => k[`hum${rh}`] > limit40)[0].temp, // min of values above 40
+            maxTemp = psychroData.filter(k => k[`hum${rh}`] < limit40).slice(-1)[0].temp, // max of values below 40
+            limitTemp = parseFloat((minTemp + (maxTemp - minTemp)/2).toFixed(2));
+        return limitTemp;
+    });
+
+    const createRange = (value, axis, label) => {
+        let rangeDataItem = axis.makeDataItem({
+            value: value
+        });
+
+        let range = axis.createAxisRange(rangeDataItem);
+
+        range.get("label").setAll({
+            forceHidden: false,
+            text: label
+        });
+
+        range.get("tick").set("visible", true);
+        range.get("grid").setAll({
+            forceHidden: true,
+            strokeOpacity: 0.2,
+            location: 1
+        });
+    }
+
+    // Create root element
+    let root = am5.Root.new("chartdiv");
+
+    // Set themes
+    root.setThemes([
+        am5themes_Animated.new(root)
+    ]);
+
+    // Create chart
+    let chart = root.container.children.push(
+        am5xy.XYChart.new(root, {
+            panX: true,
+            panY: true,
+            wheelX: "panX",
+            wheelY: "zoomXY",
+            layout: root.verticalLayout,
+            paddingLeft: 5,
+            paddingRight: 5,
+        })
+    );
+
+    // Create axes
+    let xAxis = chart.xAxes.push(
+        am5xy.ValueAxis.new(root, {
+            min: 0,
+            max: 50,
+            strictMinMax: true,
+            maxDeviation: 0,
+            renderer: am5xy.AxisRendererX.new(root, {
+                minGridDistance: 100,
+                minorGridEnabled: true,
+                stroke: am5.color(0x767d84),
+                strokeOpacity: 1,
+                strokeWidth: 1
+            }),
+            tooltip: am5.Tooltip.new(root, {
+                themeTags: ["axis"],
+                animationDuration: 300
+            })
+        })
+    );
+
+    xAxis.children.push(am5.Label.new(root, {
+        text: 'Dry Bulb Temperature (°C)',
+        textAlign: 'center',
+        x: am5.p50
+    }));
+
+    let xRenderer = xAxis.get("renderer");
+    xRenderer.ticks.template.setAll({
+        visible: true
+    });
+
+    let yAxis = chart.yAxes.push(
+        am5xy.ValueAxis.new(root, {
+            min: 0,
+            max: 32,
+            strictMinMax: true,
+            maxDeviation: 0,
+            renderer: am5xy.AxisRendererY.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {
+                themeTags: ["axis"],
+                animationDuration: 300
+            })
+        })
+    );
+
+    let yRenderer = yAxis.get("renderer");
+    yRenderer.grid.template.set("forceHidden", true);
+    yRenderer.labels.template.set("forceHidden", true);
+
+
+    let xAxisRH = chart.xAxes.push(
+        am5xy.ValueAxis.new(root, {
+            min: 0,
+            max: 50,
+            strictMinMax: true,
+            maxDeviation: 0,
+            numberFormat: "#.'%'",
+            renderer: am5xy.AxisRendererX.new(root, {
+                opposite: true,
+                minGridDistance: 50,
+                stroke: am5.color(0x767d84),
+                strokeOpacity: 1,
+                strokeWidth: 1
+            }),
+        })
+    );
+
+    let xRendererRH = xAxisRH.get("renderer");
+    xRendererRH.grid.template.set("forceHidden", true);
+    xRendererRH.labels.template.set("forceHidden", true);
+
+    // Place labels for RH lines on top x axis
+    tempTicks.forEach( (v, i) => {
+        let label = `${(i+5)*10}%`;
+        createRange(v, xAxisRH, label);
+    });
+
+    // TODO: fix top axis style and remove left portion
+
+    let yAxisRH = chart.yAxes.push(
+        am5xy.ValueAxis.new(root, {
+            min: 0,
+            max: 32,
+            strictMinMax: true,
+            maxDeviation: 0,
+            numberFormat: "#.'%'",
+            renderer: am5xy.AxisRendererY.new(root, {
+                opposite: true,
+                minGridDistance: 50,
+                stroke: am5.color(0x767d84),
+                strokeOpacity: 1,
+                strokeWidth: 1
+            }),
+        })
+    );
+
+    yAxisRH.children.push(am5.Label.new(root, {
+        //text: 'Absolute Humidity (g/kg)',
+        text: 'Relative Humidity',
+        textAlign: 'center',
+        y: am5.p50,
+        rotation: 90
+    }));
+
+    let yRendererRH = yAxisRH.get("renderer");
+    yRendererRH.grid.template.set("forceHidden", true);
+    yRendererRH.labels.template.set("forceHidden", true);
+
+    // Get chart values for last temperature and calculate labels
+    Object.values(psychroData.filter(k => k.temp == 50)[0]).filter( v => v != 50).forEach( (v, i) => {
+        let label = `${(i+1)*10}%`;
+        createRange(v, yAxisRH, label);
+    });
+
+    // Create series
+    let relativeHumidity = arrayRange(0.1, 1, 0.1);
+    relativeHumidity.forEach( rh => {
+        let name = rh.toLocaleString("en", {style: "percent"}),
+            field = `hum${rh*10}`;
+        createSeries(name, field);
+    });
+
+
+
+    /******************************************************************************************/
+    /////////////////////////////////// ADD SQUARES TEMPLATE ///////////////////////////////////
+    /******************************************************************************************/
+    // Create axes for squares
+    /*----------- x -----------*/
+    let xRendererSquare= am5xy.AxisRendererX.new(root, {
+        strokeOpacity: 0.2,
+        minGridDistance: 50,
+        minorGridEnabled:true,
+    });
+
+    xRendererSquare.grid.template.setAll({
+        location: 0,
+    });
+    xRendererSquare.labels.template.set("forceHidden", true);
+        
+    let xAxisSquare = chart.xAxes.push(
+        am5xy.CategoryAxis.new(root, {
+            categoryField: "x",
+            strictMinMax: true,
+            maxDeviation: 0,
+            renderer: xRendererSquare,
+        })
+    );
+
+
+    /*----------- y -----------*/
+    let yRendererSquare = am5xy.AxisRendererY.new(root, {
+        strokeOpacity: 0.2,
+        minGridDistance: 50,
+        minorGridEnabled:true,
+        opposite: true,
+    });
+        
+    yRendererSquare.grid.template.setAll({
+        location: 0
+    });
+        
+    yRendererSquare.labels.template.set("forceHidden", true);
+
+
+    let yAxisSquare = chart.yAxes.push(
+        am5xy.CategoryAxis.new(root, {
+            // categoryField: "y",
+            strictMinMax: true,
+            maxDeviation: 0,
+            renderer: yRendererSquare,
+        })
+    );
+
+     // LIMIT AXIS 'X'
+     xAxisSquare.data.setAll([
+            // { x:"-10" }, { x:"-9" }, { x:"-8" }, { x:"-7" }, { x:"-6" }, { x:"-5" }, { x:"-4" }, { x:"-3" }, { x:"-2" }, {x:"-1"},
+            // +
+            { x:"1" }, { x:"2" }, { x:"3" }, { x:"4" }, { x:"5" }, { x:"6" }, { x:"7" }, { x:"8" }, { x:"9" }, {x:"10"},
+            { x:"11" }, { x:"12" }, { x:"13" }, { x:"14" }, { x:"15" }, { x:"16" }, { x:"17" }, { x:"18" }, { x:"19" }, {x:"20"},
+            { x:"21" }, { x:"22" }, { x:"23" }, { x:"24" }, { x:"25" }, { x:"26" }, { x:"27" }, { x:"28" }, { x:"29" }, {x:"30"},
+            { x:"31" }, { x:"32" }, { x:"33" }, { x:"34" }, { x:"35" }, { x:"36" }, { x:"37" }, { x:"38" }, { x:"39" }, {x:"40"},
+            { x:"41" }, { x:"42" }, { x:"43" }, { x:"44" }, { x:"45" }, { x:"46" }, { x:"47" }, { x:"48" }, { x:"49" }, {x:"50"},
+    ]);
+    // LIMIT AXIS 'Y'
+    yAxisSquare.data.setAll([
+            { y:"1" }, { y:"2" }, { y:"3" }, { y:"4" }, { y:"5" }, { y:"6" }, { y:"7" }, { y:"8" }, { y:"9" }, { y:"10" },
+            { y:"11" }, { y:"12" }, { y:"13" }, { y:"14" }, { y:"15" }, { y:"16" }, { y:"17" }, { y:"18" }, { y:"19" }, { y:"20" },
+            { y:"21" }, { y:"22" }, { y:"23" }, { y:"24" }, { y:"25" }, { y:"26" }, { y:"27" }, { y:"28" }, { y:"29" }, { y:"30" },
+            { y:"31" }, { y:"32" }, { y:"33" }, { y:"34" }, { y:"35" }, 
+    ]);
+
+
+    // Add SQUARE series template
+    function makeSeries(Squares) {
+        let series = chart.series.push(
+            am5xy.ColumnSeries.new(root, {
+                name: Squares,
+                 xAxis: xAxisSquare,
+                yAxis: yAxisSquare,
+                categoryYField: "y",
+                openCategoryYField: "y",
+                categoryXField: "x",
+                openCategoryXField: "x",
+                clustered: false,
+            })
+        );
+            
+        series.columns.template.setAll({
+            width: am5.percent(95),
+            height: am5.percent(95),
+            stroke: am5.color(0xffffff),
+        });
+            
+        series.appear();
+        legend.data.push(series);
+            
+        return series;
+    };
+
+
+    
+    /******************************************************************************************/
+    ////////////////////////////////////// READ .EPW FILE //////////////////////////////////////
+    /******************************************************************************************/
+    function readSingleFile(file) {
+            var f = file;
+            if (f) {
+            var r = new FileReader();
+            r.onloadstart = function(e) {
+                document.getElementById('fileinput').innerHTML = "parsing file...";
+            };
+            r.onload = function(e) {
+                var contents = e.target.result;
+                var raw = r.result;
+                
+                epw = epwJson(raw); 
+                
+            console.log(epw);
+
+            document.getElementById('stationName').innerHTML = "Chart for " + epw.stationLocation;
+            document.getElementById('year').innerHTML = "Año: " + epw.year;
+            };
+            r.readAsText(f);
+            } else { 
+            alert("Failed to load file");
+            }
+        };
+
+        fileInput = document.getElementById('fileinput');
+        
+        fileInput.onchange = function(evt) {
+        readSingleFile(evt.target.files[0]);
+        };  
+    </script>
+
+</body>
+</html>
