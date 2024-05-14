@@ -9,17 +9,23 @@
             font-family: "Segoe UI";
             height: 100%;
        }
-
         #chartdiv {
             width: 90%;
             height: calc(90vh - 30px);
             max-width: 100%;
             margin: auto;
         }
+        #fileInput {
+            width: 500px;
+        }
     </style>
 </head>
 <body>
     <h1>8</h1>
+    <div>
+        <label>Seleccione un archivo .epw:</label>
+        <input type="file" id="fileinput">
+    </div>
     <div id="chartdiv"></div>
 
     <script src="psychrolib.js"></script>
@@ -27,23 +33,21 @@
     <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
-    <script>
+    <script type="module">
+        import {flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+        import {epwJson} from "../jscripts/epw2json.js"
+
+        // function to create a range array
         const arrayRange = (start, stop, step) =>
             Array.from(
                 { length: (stop - start) / step + 1 },
                 (value, index) => parseFloat((start + index * step).toFixed(1))
             );
 
-        //function to get  psychro data
+        //function to get psychrometric data
         const get_psychroData = altitude => {
-            //temperature, rel. humidity array, altitude
-            //let dryBulb = [0,5,10,15,20,25,30,35,40,45,50];//oC
-            //let dryBulb = [ ...Array(100).keys() ].map( i => i+1);
-            let dryBulb = arrayRange(0, 50, 0.1);
-            //let wetBulb = [0,5,10,15,20,25,30,35,40,45,50];//oC
-            //let enthalpy = [0,20,40,60,80,100,120,140,160,180,200];//J/g dry Air
-            //let relativeHumidity = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1];//%
-            let relativeHumidity = arrayRange(0.1, 1, 0.1);
+            let dryBulb = arrayRange(0, 50, 0.1); // 0 to 50 every 0.1 oC
+            let relativeHumidity = arrayRange(0.1, 1, 0.1); // 0.1 to 1 every 0.1 %
 
             //call this function with an altitude value
             if(altitude != 0){
@@ -57,7 +61,7 @@
             //set unit system - SI
             psychrolib.SetUnitSystem(psychrolib.SI);
             //barometric pressure by altitude
-            pressure = psychrolib.GetStandardAtmPressure(altitude);
+            let pressure = psychrolib.GetStandardAtmPressure(altitude);
 
             let data = [],
                 temp;
@@ -67,8 +71,8 @@
                 let currentData = {temp: valueTemp};
 
                 for (let [keyHumidity, valueHumidity] of Object.entries(relativeHumidity)) {
-                    rh = psychrolib.GetHumRatioFromRelHum(valueTemp, valueHumidity, pressure);
-                    currentData[`hum${parseInt(keyHumidity)+1}`] = rh*1000;
+                    let ah = psychrolib.GetHumRatioFromRelHum(valueTemp, valueHumidity, pressure)*1000;
+                    currentData[`hum${parseInt(keyHumidity)+1}`] = ah;
                 }
                 data.push(currentData);
             }
@@ -77,8 +81,8 @@
             return data;
         }
 
-        // function to create series
-        const createSeries = (name, field, lineType) => {
+        // function to create RH lines series
+        const createRHSeries = (name, field, lineType) => {
             let series = chart.series.push(
                 am5xy.SmoothedXLineSeries.new(root, {
                     name: name,
@@ -93,7 +97,6 @@
                 })
             );
             if (name == "100%") {
-                baseAxis: yAxis,
                 series.strokes.template.setAll({
                     strokeWidth: 1,
                     strokeOpacity: 0.7,
@@ -112,6 +115,105 @@
             series.data.setAll(psychroData);
         }
 
+        // function to create data series from epw
+        const createDataSeries = (name, chartData) => {
+            let series = chart.series.push(am5xy.LineSeries.new(root, {
+                name: name,
+                xAxis: xAxis,
+                yAxis: yAxis,
+                valueYField: "ah",
+                valueXField: "t",
+            }));
+            series.strokes.template.set("visible", false);
+            series.bullets.push(() => {
+                var bulletCircle = am5.Circle.new(root, {
+                  radius: 2,
+                  fill: am5.color("#00F"),
+                  fillOpacity: 0.8
+                });
+                return am5.Bullet.new(root, {
+                  sprite: bulletCircle
+                });
+              });
+
+            series.data.setAll(chartData);
+            chart.set("psychroSeries", series);
+        }
+
+        // function to create an axis range
+        const createRange = (value, axis, label) => {
+            let rangeDataItem = axis.makeDataItem({
+                value: value
+            });
+
+            let range = axis.createAxisRange(rangeDataItem);
+
+            range.get("label").setAll({
+                forceHidden: false,
+                text: label
+            });
+
+            range.get("tick").set("visible", true);
+            range.get("grid").setAll({
+                forceHidden: true,
+                strokeOpacity: 0.2,
+                location: 1
+            });
+        }
+
+        // function to read epw file
+        const readSingleFile = file => {
+            let f = file;
+            if (f) {
+                let r = new FileReader();
+                r.onloadstart = e => {
+                    document.getElementById("fileinput").innerHTML = "Parsing file...";
+                };
+                r.onload = e => { // lo lee como archivo
+                    let contents = e.target.result,
+                        raw = r.result,
+                        epw = epwJson(raw); // parsea el archivo epw de json object
+
+                        //let altitude = epw.elevation != undefined ? epw.elevation ? 0;
+                        let psychrolib = new Psychrometrics();
+                        //set unit system - SI
+                        psychrolib.SetUnitSystem(psychrolib.SI);
+                        let altitude = 0,
+                            pressure = psychrolib.GetStandardAtmPressure(altitude),
+
+                            // convert relative humidity from epw to absolute humidity to plot in chart
+                            data = epw.weatherData.map( d => {
+                                return {"t":+d[6],
+                                        "tFloor": Math.floor(d[6]),
+                                        //"ah":+d[8],
+                                        "ah": psychrolib.GetHumRatioFromRelHum(+d[6], +d[8]/100, pressure)*1000,
+                                        //"ahFloor": Math.floor(d[8]/10)*10}
+                                        "ahFloor": Math.floor(psychrolib.GetHumRatioFromRelHum(+d[6], +d[8]/100, pressure)*1000)}
+                        }),
+                            // sumarize data in  groups of temperature, absolute humidity, and number of observations
+                            chartData = flatRollup(data, d => d.length, d => d.tFloor, d => d.ahFloor)
+                                .map(d => { return {"t": d[0], "ah":d[1], "n":d[2]} });
+                        //console.log(data)
+                        //console.log(chartData);
+                        // clean series before adding a new one
+                        if (chart.get("psychroSeries")) {
+                            // Remove previous series
+                            let currentSeries = chart.get("psychroSeries");
+                            let data = currentSeries.data.values;
+                            chart.series.removeValue(currentSeries);
+                        }
+                        createDataSeries("psychroPoints", data);
+
+                    //console.log(epw); // monitoreo de archivos en consola
+                    //document.getElementById("stationName").innerHTML = "Chart for " + epw.stationLocation;
+                    //document.getElementById("year").innerHTML = "Año: " + epw.year;
+                };
+                r.readAsText(f);
+            } else {
+                alert("Failed to load file");
+            }
+        };
+
     let psychroData = get_psychroData(0);
 
     // get temperature values where 40%-100% RH lines intersect with truncated axis
@@ -123,28 +225,9 @@
         return limitTemp;
     });
 
-    const createRange = (value, axis, label) => {
-        let rangeDataItem = axis.makeDataItem({
-            value: value
-        });
-
-        let range = axis.createAxisRange(rangeDataItem);
-
-        range.get("label").setAll({
-            forceHidden: false,
-            text: label
-        });
-
-        range.get("tick").set("visible", true);
-        range.get("grid").setAll({
-            forceHidden: true,
-            strokeOpacity: 0.2,
-            location: 1
-        });
-    }
-
     // Create root element
     let root = am5.Root.new("chartdiv");
+    root._logo.dispose();
 
     // Set themes
     root.setThemes([
@@ -186,8 +269,8 @@
     );
 
     xAxis.children.push(am5.Label.new(root, {
-        text: 'Dry Bulb Temperature (°C)',
-        textAlign: 'center',
+        text: "Dry Bulb Temperature (°C)",
+        textAlign: "center",
         x: am5.p50
     }));
 
@@ -232,6 +315,15 @@
         })
     );
 
+/*    xAxisRH.set("mask", am5.Rectangle.new(root, {
+        //fill: am5.color(0x000000),
+        width: am5.percent(50),
+        height: 500,
+        x: am5.percent(50),
+        y: 0,
+        position: "relative"
+      }));*/
+
     let xRendererRH = xAxisRH.get("renderer");
     xRendererRH.grid.template.set("forceHidden", true);
     xRendererRH.labels.template.set("forceHidden", true);
@@ -242,7 +334,7 @@
         createRange(v, xAxisRH, label);
     });
 
-    // TODO: fix top axis style and remove left portion
+    // FIXME: fix top axis style and remove left portion (FF on windows)
 
     let yAxisRH = chart.yAxes.push(
         am5xy.ValueAxis.new(root, {
@@ -262,9 +354,9 @@
     );
 
     yAxisRH.children.push(am5.Label.new(root, {
-        //text: 'Absolute Humidity (g/kg)',
-        text: 'Relative Humidity',
-        textAlign: 'center',
+        //text: "Absolute Humidity (g/kg)",
+        text: "Relative Humidity",
+        textAlign: "center",
         y: am5.p50,
         rotation: 90
     }));
@@ -279,13 +371,19 @@
         createRange(v, yAxisRH, label);
     });
 
-    // Create series
+    // Create relative humidity series
     let relativeHumidity = arrayRange(0.1, 1, 0.1);
     relativeHumidity.forEach( rh => {
         let name = rh.toLocaleString("en", {style: "percent"}),
             field = `hum${rh*10}`;
-        createSeries(name, field);
+        createRHSeries(name, field);
     });
+
+    // Read file and draw chart
+    let fileInput = document.getElementById("fileinput"); //obtiene el archivo
+    fileInput.onchange = evt => {
+        readSingleFile(evt.target.files[0]);
+    };
 
     </script>
 
