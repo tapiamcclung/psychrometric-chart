@@ -28,7 +28,6 @@
     </div>
     <div id="chartdiv"></div>
 
-    <script src="psychrolib.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
@@ -36,6 +35,7 @@
     <script type="module">
         import {flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         import {epwJson} from "../jscripts/epw2json.js"
+        import * as Psychrolib from "./psychrolib.js"
 
         // function to create a range array
         const arrayRange = (start, stop, step) =>
@@ -56,8 +56,6 @@
                 altitude = 0;
             }
 
-            //Call psychrolib function
-            let psychrolib = new Psychrometrics();
             //set unit system - SI
             psychrolib.SetUnitSystem(psychrolib.SI);
             //barometric pressure by altitude
@@ -235,7 +233,6 @@
                         epw = epwJson(raw); // parsea el archivo epw de json object
 
                         //let altitude = epw.elevation != undefined ? epw.elevation ? 0;
-                        let psychrolib = new Psychrometrics();
                         //set unit system - SI
                         psychrolib.SetUnitSystem(psychrolib.SI);
                         let altitude = 0,
