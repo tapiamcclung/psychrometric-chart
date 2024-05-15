@@ -496,7 +496,7 @@
         yHeatRenderer.grid.template.set("visible", false);
         yHeatRenderer.labels.template.set("forceHidden", true);
 
-        //TODO: add comfort zone region
+        //TODO: fix heatLegend tooltip font size
         //TODO: fix zoom. It either zooms out automatically or grid zooms in and background returns
 
         // add chart info
@@ -510,6 +510,77 @@
             paddingBottom: 0
         }));
 
+        // add comfort zone
+        let seriesCZ = chart.series.push(am5xy.LineSeries.new(root, {
+            name: "CZ",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "ah",
+            valueXField: "t",
+            stroke: am5.color(0x000),
+            fill: am5.color("#35FE4C"),
+            layer: 30,
+            tooltipText: "{valueY}",
+            showTooltipOn: "click"
+        }));
+
+        //TODO: add Comfort Zone label
+
+        seriesCZ.strokes.template.setAll({
+            strokeWidth: 3,
+            strokeOpacity: 0.7,
+        });
+        seriesCZ.fills.template.setAll({
+            fillOpacity: 0.25,
+            visible: true
+        });
+
+        seriesCZ.strokes.template.set("visible", true);
+
+        // TODO: calculate comfort zone region limits for other cities
+        let czT = psychroData.filter( d => d.temp >= 20 && d.temp <= 27);
+
+        let part80 = czT.filter(d => d.temp <= 25).map(({temp,hum8}) => ({temp, hum8})),
+            part2750 = czT.filter(d => d.temp == 27).map(({temp,hum5}) => ({temp, hum5})),
+            part2720 = czT.filter(d => d.temp == 27).map(({temp,hum2}) => ({temp, hum2})),
+            part20 = czT.map(({temp,hum2}) => ({temp, hum2})),
+
+            p80Data = part80.map( d => { return {t: d.temp, ah: d.hum8}}),
+            p2750Data = part2750.map( d => { return {t: d.temp, ah: d.hum5}}),
+            p2720Data = part2720.map( d => { return {t: d.temp, ah: d.hum2}}),
+            p20Data = part20.map( d => { return {t: d.temp, ah: d.hum2}}),
+
+            czData = [p20Data[0]].concat(p80Data).concat(p2750Data).concat(p2720Data).concat(p20Data.reverse());
+
+        let tooltip = am5.Tooltip.new(root, {
+            getFillFromSprite: false,
+            getStrokeFromSprite: false,
+            dy: 200,
+            dx: 250
+        });
+
+        tooltip.get("background").setAll({
+            fill: am5.color(0xffffff),
+            fillOpacity: 0.8,
+            stroke: am5.color(0x000000),
+            strokeOpacity: 0.8
+        });
+
+        seriesCZ.set("tooltip", tooltip);
+        seriesCZ.fills.template.setAll({
+            tooltipHTML: "",
+            tooltipText: "{name}",
+            showTooltipOn: "click"
+        });
+
+        seriesCZ.fills.template.events.on("click", function(ev) {
+            let cz = ev.target;
+            cz.set("tooltipHTML","<img src=\"../gifs/10.gif\" width=\"500\">");
+        });
+
+        seriesCZ.data.setAll(czData);
+        chart.set("CZ", seriesCZ);
+
         // Grid and points legend
         let legend = chart.bottomAxesContainer.children.push(am5.Legend.new(root, {
             layout: root.horizontalLayout,
@@ -517,6 +588,7 @@
             centerY: am5.percent(50)
         }));
 
+        legend.labels.template.set("fontSize", "0.75em");
         legend.markers.template.setAll({
             width: 24,
             height: 18
@@ -537,6 +609,8 @@
             width: am5.p50,
             visible: false
         }));
+        heatLegend.startLabel.set("fontSize", "0.75em");
+        heatLegend.endLabel.set("fontSize", "0.75em");
 
         // General legend container
         let legendContainer = chart.children.push(am5.Container.new(root, {
@@ -554,6 +628,7 @@
         fileInput.onchange = evt => {
             readSingleFile(evt.target.files[0]);
         };
+        // TODO: enable drag and drop file
 
     </script>
 
