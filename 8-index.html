@@ -269,9 +269,9 @@
                         createHeatSeries("Data Grid", heatData);
                         legend.data.setAll([chart.get("Data Grid"), chart.get("Hourly Data Points")]);
 
-                    //console.log(epw); // monitoreo de archivos en consola
-                    //document.getElementById("stationName").innerHTML = "Chart for " + epw.stationLocation;
-                    //document.getElementById("year").innerHTML = "Año: " + epw.year;
+                        // Update chart info
+                        let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
+                        chartInfo.set("text", chartInfoText);
                 };
                 r.readAsText(f);
             } else {
@@ -497,8 +497,18 @@
         yHeatRenderer.labels.template.set("forceHidden", true);
 
         //TODO: add comfort zone region
-        //TODO: add location data on chart
         //TODO: fix zoom. It either zooms out automatically or grid zooms in and background returns
+
+        // add chart info
+        let chartInfo = root.container.children.push(am5.Label.new(root, {
+            text: "",
+            textAlign: "left",
+            fontSize: "1em",
+            y: 20,
+            layer: 30,
+            paddingTop: 0,
+            paddingBottom: 0
+        }));
 
         // Grid and points legend
         let legend = chart.bottomAxesContainer.children.push(am5.Legend.new(root, {
