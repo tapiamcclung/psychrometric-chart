@@ -89,7 +89,8 @@
 
             range.get("label").setAll({
                 forceHidden: false,
-                text: label
+                text: label,
+                fontSize: "0.75em"
             });
 
             range.get("tick").set("visible", true);
@@ -111,7 +112,8 @@
                     valueXField: "temp",
                     baseAxis: name == "100%" ? yAxis : xAxis,
                     stroke: am5.color(0x767d84),
-                    fill: am5.color(0xffffff)
+                    fill: am5.color(0xffffff),
+                    layer: 30
                 })
             );
             if (name == "100%") {
@@ -131,7 +133,6 @@
                 });
             }
             series.data.setAll(psychroData);
-            //TODO: draw lines on top of other stuff?
         }
 
         // function to create data series from epw
@@ -148,7 +149,8 @@
                 var bulletCircle = am5.Circle.new(root, {
                   radius: 2,
                   fill: am5.color("#00F"),
-                  fillOpacity: 0.8
+                  fillOpacity: 0.8,
+                  layer: 30
                 });
                 return am5.Bullet.new(root, {
                   sprite: bulletCircle
@@ -211,7 +213,7 @@
             chart.set(name, heatSeries);
 
             let temps = arrayRange(0, 49, 1),
-                absHums =  arrayRange(0, 32, 1),
+                absHums =  arrayRange(0, 31, 1),
                 axisTemps = temps.map( t => { return {"t": t} }),
                 axisHums = absHums.map( ah => { return {"ah": ah} });
 
@@ -334,12 +336,16 @@
         xAxis.children.push(am5.Label.new(root, {
             text: "Dry Bulb Temperature (°C)",
             textAlign: "center",
-            x: am5.p50
+            x: am5.p50,
+            fontSize: "0.75em"
         }));
 
         let xRenderer = xAxis.get("renderer");
         xRenderer.ticks.template.setAll({
             visible: true
+        });
+        xRenderer.labels.template.setAll({
+            fontSize: "0.75em"
         });
 
         let yAxis = chart.yAxes.push(
@@ -360,6 +366,42 @@
         yRenderer.grid.template.set("forceHidden", true);
         yRenderer.labels.template.set("forceHidden", true);
 
+        let yAxisAH = chart.yAxes.push(
+            am5xy.ValueAxis.new(root, {
+                min: 0,
+                max: 32,
+                x: 0,
+                strictMinMax: true,
+                maxDeviation: 0,
+                renderer: am5xy.AxisRendererY.new(root, {
+                    opposite: true,
+                    minGridDistance: 50,
+                    stroke: am5.color(0x767d84),
+                    strokeOpacity: 1,
+                    strokeWidth: 1,
+                    minorGridEnabled: true,
+                    visible: true
+                }),
+            })
+        );
+
+        yAxisAH.children.push(am5.Label.new(root, {
+            text: "Absolute Humidity (g/kg)",
+            textAlign: "center",
+            y: am5.p50,
+            rotation: 90,
+            fontSize: "0.75em"
+        }));
+
+        let yRendererAH = yAxisAH.get("renderer");
+        yRendererAH.ticks.template.setAll({
+            visible: true
+        });
+        yRendererAH.grid.template.set("forceHidden", false);
+        yRendererAH.labels.template.setAll({
+            forceHidden: false,
+            fontSize: "0.75em"
+        });
 
         let xAxisRH = chart.xAxes.push(
             am5xy.ValueAxis.new(root, {
@@ -368,6 +410,7 @@
                 strictMinMax: true,
                 maxDeviation: 0,
                 numberFormat: "#.'%'",
+                layer: 10,
                 renderer: am5xy.AxisRendererX.new(root, {
                     opposite: true,
                     minGridDistance: 50,
@@ -378,15 +421,6 @@
             })
         );
 
-    /*    xAxisRH.set("mask", am5.Rectangle.new(root, {
-            //fill: am5.color(0x000000),
-            width: am5.percent(50),
-            height: 500,
-            x: am5.percent(50),
-            y: 0,
-            position: "relative"
-        }));*/
-
         let xRendererRH = xAxisRH.get("renderer");
         xRendererRH.grid.template.set("forceHidden", true);
         xRendererRH.labels.template.set("forceHidden", true);
@@ -396,8 +430,6 @@
             let label = `${(i+5)*10}%`;
             createRange(v, xAxisRH, label);
         });
-
-        // FIXME: fix top axis style and remove left portion (FF on windows)
 
         let yAxisRH = chart.yAxes.push(
             am5xy.ValueAxis.new(root, {
@@ -411,18 +443,11 @@
                     minGridDistance: 50,
                     stroke: am5.color(0x767d84),
                     strokeOpacity: 1,
-                    strokeWidth: 1
+                    strokeWidth: 1,
+                    inside: true
                 }),
             })
         );
-
-        yAxisRH.children.push(am5.Label.new(root, {
-            //text: "Absolute Humidity (g/kg)",
-            text: "Relative Humidity",
-            textAlign: "center",
-            y: am5.p50,
-            rotation: 90
-        }));
 
         let yRendererRH = yAxisRH.get("renderer");
         yRendererRH.grid.template.set("forceHidden", true);
@@ -447,9 +472,7 @@
             am5xy.CategoryAxis.new(root, {
                 maxDeviation: 0,
                 renderer: am5xy.AxisRendererX.new(root, {
-                    minGridDistance: 30,
-                    minorGridEnabled: true,
-                    visible: true
+                    minGridDistance: 30
                 }),
                 categoryField: "t"
             })
@@ -470,12 +493,12 @@
             })
         );
         let yHeatRenderer = yHeatAxis.get("renderer");
-        yHeatRenderer.grid.template.set("visible", true);
+        yHeatRenderer.grid.template.set("visible", false);
         yHeatRenderer.labels.template.set("forceHidden", true);
 
-        //TODO: add absolute humidity axis; RH labels inside
-        //TODO: add confort zone region
+        //TODO: add comfort zone region
         //TODO: add location data on chart
+        //TODO: fix zoom. It either zooms out automatically or grid zooms in and background returns
 
         // Grid and points legend
         let legend = chart.bottomAxesContainer.children.push(am5.Legend.new(root, {
