@@ -523,8 +523,7 @@
             tooltipText: "{valueY}",
             showTooltipOn: "click"
         }));
-
-        //TODO: add Comfort Zone label
+        // TODO: always show tooltip when clicking CZ? Right now it only shows when clicking outside of heat map grid
 
         seriesCZ.strokes.template.setAll({
             strokeWidth: 3,
@@ -577,6 +576,19 @@
             let cz = ev.target;
             cz.set("tooltipHTML","<img src=\"../gifs/10.gif\" width=\"500\">");
         });
+
+        // CZ label
+        let label = seriesCZ.children.push(am5.Label.new(root, {
+            text: "ZONA DE CONFORT",
+            fontSize: "0.9em",
+            fontWeight: "600",
+            opacity: 0.9,
+            x: am5.percent(51.5),
+            y: am5.percent(76),
+            centerX: am5.p100,
+            centerY: am5.p100,
+            layer: 30
+        }));
 
         seriesCZ.data.setAll(czData);
         chart.set("CZ", seriesCZ);
