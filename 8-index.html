@@ -3,29 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chart 8</title>
+    <title>Psychrometric chart</title>
     <style>
         body {
             font-family: "Segoe UI";
             height: 100%;
        }
         #chartdiv {
-            width: 90%;
-            height: calc(90vh - 30px);
+            width: 95%;
+            height: calc(100vh - 10px);
             max-width: 100%;
             margin: auto;
         }
         #fileInput {
             width: 500px;
         }
+        .highlight{
+            filter: blur(5px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings:
+            "FILL" 0,
+            "wght" 100,
+            "GRAD" 200,
+            "opsz" 48
+        }
+        #upload {
+            display: none;
+            position: absolute;
+            z-index: 100;
+            top: 50%;
+            left: calc(50% - 100px);
+            font-size: 200px;
+            pointer-events: none;
+        }
     </style>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
 <body>
-    <h1>8</h1>
-    <div>
-        <label>Seleccionar archivo .epw:</label>
-        <input type="file" id="fileinput">
-    </div>
+
+    <span id="upload" class="material-symbols-outlined">upload_file</span>
     <div id="chartdiv"></div>
 
     <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
@@ -33,9 +50,66 @@
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
     <script type="module">
-        import {flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+        import {extent, flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         import {epwJson} from "../jscripts/epw2json.js"
         import * as Psychrolib from "./psychrolib.js"
+
+        const  preventDefaults = e => {
+            e.preventDefault()
+            e.stopPropagation()
+        }
+        const highlight = e => {
+            document.getElementById("chartdiv").classList.add("highlight");
+            document.getElementById("upload").style.display = "block";
+        }
+        const unhighlight = e => {
+            document.getElementById("chartdiv").classList.remove("highlight");
+            document.getElementById("upload").style.display = "none";
+        }
+
+        const validateExtension = files => {
+            let allowedExtensions = /(\.csv|\.epw)$/i;
+            for (const file of files) {
+                if (!allowedExtensions.exec(file.name)) {
+                    alert("Please upload file having extensions .epw or .csv only."); //TODO: add modal instead of alert
+                    fileInput.value = "";
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+        }
+        const processFile = e => {
+            let dt = e.dataTransfer,
+                files = dt.files,
+                validFile = validateExtension(files);
+            if (validFile) {
+                if (dt.items.length == 1 ) { // process if it is only one file
+                    // Use DataTransferItemList interface to access the file(s)
+                    [...dt.items].forEach((item, i) => {
+                        // If dropped items aren't files, reject them
+                        if (item.kind === "file") {
+                            const file = item.getAsFile();
+                            readSingleFile(file);
+                        }
+                    });
+                } else { // reject if it is more than one file
+                    alert("Please upload only one file"); //TODO: add modal instead of alert
+                }
+            }
+        }
+
+        ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
+            document.getElementById("chartdiv").addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+        ["dragenter", "dragover"].forEach(eventName => {
+            document.getElementById("chartdiv").addEventListener(eventName, highlight, false);
+        });
+        ["dragleave", "drop"].forEach(eventName => {
+            document.getElementById("chartdiv").addEventListener(eventName, unhighlight, false);
+        });
+        document.getElementById("chartdiv").addEventListener("drop", processFile, false);
 
         // function to create a range array
         const arrayRange = (start, stop, step) =>
@@ -200,26 +274,17 @@
                 showTooltipOn: "click"
             });
 
-            seriesCZ.fills.template.events.on("click", function(ev) {
+            seriesCZ.fills.template.events.on("click", ev => {
                 let cz = ev.target;
                 cz.set("tooltipHTML","<img src=\"../gifs/10.gif\" width=\"500\">");
+                // FIXME: move tooltip indicator to point left
             });
 
-            // CZ label
-            let label = seriesCZ.children.push(am5.Label.new(root, {
-                text: "ZONA DE CONFORT",
-                fontSize: "0.9em",
-                fontWeight: "600",
-                opacity: 0.9,
-                x: am5.percent(51.5),
-                y: am5.percent(76),
-                centerX: am5.p100,
-                centerY: am5.p100,
-                layer: 30
-            }));
+            let label = seriesCZ.children.push(am5.Label.new(root, {id: "czLabel"} ) );
 
             seriesCZ.data.setAll(czData);
             chart.set("CZ", seriesCZ);
+            return seriesCZ;
         }
 
         // function to create data series from epw
@@ -345,7 +410,30 @@
             });
 
             // Create comfort zone
-            createCZSeries(psychroData);
+            let seriesCZ = createCZSeries(psychroData);
+            // adjust CZ label position
+            seriesCZ.events.on("boundschanged", () => {
+                if (seriesCZ.dataItems[0].has("point")) { // if series is rendered, calculate region's center
+                    let points = seriesCZ.dataItems.map( di => di.get("point")),
+                        extentX = extent(points, d => d.x),
+                        extentY = extent(points, d => d.y),
+                        posX = extentX[0]+(extentX[1]-extentX[0])/2,
+                        posY = extentY[0]+(extentY[1]-extentY[0])/2,
+
+                        label = am5.registry.entitiesById.czLabel; // get label by ID
+                    label.setAll({
+                        text: "ZONA DE CONFORT",
+                        fontSize: "0.9em",
+                        fontWeight: "600",
+                        opacity: 0.9,
+                        x: posX,
+                        y: posY,
+                        centerX: am5.p50,
+                        centerY: am5.p50,
+                        layer: 30
+                    });
+                }
+            });
         }
 
         // function to read epw file
@@ -353,9 +441,6 @@
         const readSingleFile = file => {
             if (file) {
                 let reader = new FileReader();
-                reader.onloadstart = e => {
-                    document.getElementById("fileinput").innerHTML = "Parsing file...";
-                };
                 reader.onload = e => { // read as file
                     let contents = e.target.result,
                         raw = reader.result,
@@ -369,7 +454,7 @@
                             // convert relative humidity from epw to absolute humidity to plot in chart
                             pointData = epw.weatherData.map( d => {
                                 let ah = psychrolib.GetHumRatioFromRelHum(+d[6], +d[8]/100, pressure)*1000
-                                return {"t":+d[6],
+                                return {"t": +d[6],
                                         "tFloor": Math.floor(d[6]),
                                         "ah": ah,
                                         "ahFloor": Math.floor(ah)}
@@ -590,7 +675,7 @@
 
         // add chart info
         let chartInfo = root.container.children.push(am5.Label.new(root, {
-            text: "",
+            text: "Arrastra y suelta un archivo .epw a la gráfica",
             textAlign: "left",
             fontSize: "1em",
             y: 20,
@@ -642,13 +727,6 @@
         legendContainer.children.push(heatLegend);
 
         setupAxes(0);
-
-        // Read file and draw chart
-        let fileInput = document.getElementById("fileinput"); //get file
-        fileInput.onchange = evt => {
-            readSingleFile(evt.target.files[0]);
-        };
-        // TODO: enable drag and drop file
     </script>
 
 </body>
