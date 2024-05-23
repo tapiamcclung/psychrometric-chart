@@ -37,7 +37,11 @@
     <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
-    <script>
+    <script type="module">
+        import {flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+        import {epwJson} from "../jscripts/epw2json.js"
+
+        // function to create a range array
         const arrayRange = (start, stop, step) =>
             Array.from(
                 { length: (stop - start) / step + 1 },
@@ -81,7 +85,7 @@
             return data;
         }
 
-        // function to create series
+        // function to create HR series
         const createSeries = (name, field, lineType) => {
             let series = chart.series.push(
                 am5xy.SmoothedXLineSeries.new(root, {
@@ -125,13 +129,6 @@
                 valueXField: "t",
         }));
 
-            // series.columns.template.setAll({ // waffle
-            //     width: am5.percent(95),
-            //     height: am5.percent(95),
-            //     fill: am5.color("#00F"),
-            //     stroke: am5.color(0xffffff),
-            // });
-
             series.strokes.template.set("visible", false);
             series.bullets.push(() => {
                 var bulletCircle = am5.Circle.new(root, {
@@ -144,12 +141,60 @@
                   sprite: bulletCircle
                 });
               });
-                
+
+                // ↓ lo mismo para heatmap (cambiar nombre)
                 series.data.setAll(chartData);
                 chart.set("psychroSeries", series);
                 // series.appear();
                 // return series;
         };
+        
+        //******************** basado de código HeatMap → → https://jsfiddle.net/jt7mrboy/2/  ← de heatmap copy
+        const heatmapDataColor = (heatmapp,chartData) => {  // para crear los cuadros de heatmap
+            let heatmapData = chart.series.push(am5xy.ColumnSeries.new(root,{
+                name: heatmapp,
+                xAxis: xAxisWaffle,  // ??
+                yAxis: yAxisWaffle,  // ??
+                valueYField: "ah",
+                valueXField: "t",
+                valueField: "n",
+                clustered: false,
+                calculateAggregates: true, // para dar color degradado
+                fill: am5.color("00F"),
+            }));
+
+            heatmapData.columns.template.setAll({ //heatmap copy
+                tooltipText: "{n}", // muestra la cantidad
+                strokeOpacity: 1,
+                strokeWidth: 2,
+                width: am5.percent(100),
+                height: am5.percent(100),
+            });
+
+            heatmapData.columns.template.events.on("pointerover", function(event) { //heatmap copy
+                let di = event.target.dataItem;
+                if (di) {
+                    heatLegend.showValue(di.get("value", 0));
+                }
+            });
+                
+            heatmapData.events.on("datavalidated", function() { //heatmap copy
+                heatLegend.set("startValue", series.getPrivate("valueHigh"));
+                heatLegend.set("endValue", series.getPrivate("valueLow"));
+            });
+                
+            heatmapData.set("heatRules", [{ //heatmap copy
+                target: series.columns.template,
+                min: am5.color("00F"), //mod
+                max: am5.color(0xfffb77), //mod
+                dataField: "value",
+                key: "fill"
+            }]);
+                
+            heatmapData.data.setAll(chartData); // lo mismo para heatmap, mod→series
+            chart.set(name, heatmapData); // para agregar template/chart del heatmap
+        }; // profe → 'todo debe de ir dentro de ésta llave'
+        //********************
 
         // function to create an axis range
         const createRange = (value, axis, label) => {
@@ -205,7 +250,7 @@
                             chartData = flatRollup(data, d => d.length, d => d.tFloor, d => d.ahFloor)
                                 .map(d => { return {"t": d[0], "ah":d[1], "n":d[2]} });
                         //console.log(data)
-                        console.log(chartData);
+                        // console.log(chartData); //** ver array data en consola **
                         // clean series before adding a new one
                         if (chart.get("psychroSeries")) {
                             // Remove previous series
@@ -521,14 +566,6 @@
             
         return series;
     };
-        
-        // Heat rule
-            //  dataSeries.set("heatRules", [{
-            //     dataField: "value",
-            //     key: "fill",
-            //     min: am5.color("007CFF"),
-            //     max: am5.color("FF0000"),
-            // }]);
 
     </script>
 </body>
