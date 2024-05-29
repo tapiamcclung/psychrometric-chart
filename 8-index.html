@@ -309,8 +309,9 @@
                 });
               });
 
-            series.data.setAll(chartData);
-            chart.set(name, series);
+            // add a button to show the specific bullets?
+            // series.data.setAll(chartData);
+            // chart.set(name, series);
         }
 
         // function to create heatmap data series from epw
@@ -330,11 +331,10 @@
             }));
 
             heatSeries.columns.template.setAll({
-                tooltipText: "T: {t}, AH: {ah}, N: {n}",
-                //tooltipText: "{n}",
+                tooltipText: "T: {t}, AH: {ah}, Hrs: {n}",
                 strokeOpacity: 0.5,
                 strokeWidth: 2,
-                fillOpacity: 0.75,
+                fillOpacity: 0.95,
                 width: am5.percent(90),
                 height: am5.percent(90)
             });
