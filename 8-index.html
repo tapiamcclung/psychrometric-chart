@@ -256,6 +256,7 @@
             let tooltip = am5.Tooltip.new(root, {
                 getFillFromSprite: false,
                 getStrokeFromSprite: false,
+                pointerOrientation: "horizontal",
                 dy: 200,
                 dx: 250
             });
@@ -277,7 +278,6 @@
             seriesCZ.fills.template.events.on("click", ev => {
                 let cz = ev.target;
                 cz.set("tooltipHTML","<img src=\"../gifs/10.gif\" width=\"500\">");
-                // FIXME: move tooltip indicator to point left
             });
 
             let label = seriesCZ.children.push(am5.Label.new(root, {id: "czLabel"} ) );
