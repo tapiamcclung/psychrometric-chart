@@ -257,8 +257,8 @@
                 getFillFromSprite: false,
                 getStrokeFromSprite: false,
                 pointerOrientation: "horizontal",
-                dy: 200,
-                dx: 250
+                dy: 100,
+                dx: 50
             });
 
             tooltip.get("background").setAll({
@@ -311,7 +311,7 @@
 
             // add a button to show the specific bullets?
             // series.data.setAll(chartData);
-            // chart.set(name, series);
+            chart.set(name, series);
         }
 
         // function to create heatmap data series from epw
@@ -506,6 +506,24 @@
             })
         );
 
+        // Add Cursor
+        chart.set("cursor", am5xy.XYCursor.new(root, {}));
+        let cursor = chart.get("cursor");
+
+        cursor.lineX.setAll({
+            stroke: am5.color(0x550000),
+            strokeWidth: 0.7,
+            // strokeOpacity: 0.6,
+            strokeDasharray: [3, 3],
+        });
+        
+        cursor.lineY.setAll({
+            stroke: am5.color(0x550000),
+            strokeWidth: 0.7,
+            // strokeOpacity: 0.6,
+            strokeDasharray: [4, 3],
+        });        
+
         // Create axes
         let xAxis = chart.xAxes.push(
             am5xy.ValueAxis.new(root, {
@@ -513,6 +531,7 @@
                 max: 50,
                 strictMinMax: true,
                 maxDeviation: 0,
+                extraTooltipPrecision: 1,
                 renderer: am5xy.AxisRendererX.new(root, {
                     minGridDistance: 100,
                     minorGridEnabled: true,
@@ -548,7 +567,10 @@
                 max: 35,
                 strictMinMax: true,
                 maxDeviation: 0,
-                renderer: am5xy.AxisRendererY.new(root, {}),
+                extraTooltipPrecision: 1,
+                renderer: am5xy.AxisRendererY.new(root, {
+                    opposite: true,
+                }),
                 tooltip: am5.Tooltip.new(root, {
                     themeTags: ["axis"],
                     animationDuration: 300
