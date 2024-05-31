@@ -309,8 +309,7 @@
                 });
               });
 
-            // add a button to show the specific bullets?
-            // series.data.setAll(chartData);
+            series.data.setAll(chartData);
             chart.set(name, series);
         }
 
@@ -331,7 +330,7 @@
             }));
 
             heatSeries.columns.template.setAll({
-                tooltipText: "T: {t}, AH: {ah}, Hrs: {n}",
+                tooltipText: "Temperatura: {t}\nHumedad absoluta: {ah}\nObservaciones: {n}",
                 strokeOpacity: 0.5,
                 strokeWidth: 2,
                 fillOpacity: 0.95,
@@ -516,13 +515,13 @@
             // strokeOpacity: 0.6,
             strokeDasharray: [3, 3],
         });
-        
+
         cursor.lineY.setAll({
             stroke: am5.color(0x550000),
             strokeWidth: 0.7,
             // strokeOpacity: 0.6,
             strokeDasharray: [4, 3],
-        });        
+        });
 
         // Create axes
         let xAxis = chart.xAxes.push(
