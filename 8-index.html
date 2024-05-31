@@ -66,7 +66,6 @@
             document.getElementById("chartdiv").classList.remove("highlight");
             document.getElementById("upload").style.display = "none";
         }
-
         const validateExtension = files => {
             let allowedExtensions = /(\.csv|\.epw)$/i;
             for (const file of files) {
@@ -221,11 +220,8 @@
                 valueXField: "t",
                 stroke: am5.color(0x000),
                 fill: am5.color("#35FE4C"),
-                layer: 30,
-                tooltipText: "{valueY}",
-                showTooltipOn: "click"
+                layer: 30
             }));
-            // TODO: always show tooltip when clicking CZ? Right now it only shows when clicking outside of heat map grid
 
             seriesCZ.strokes.template.setAll({
                 strokeWidth: 3,
@@ -238,7 +234,7 @@
 
             seriesCZ.strokes.template.set("visible", true);
 
-            // TODO: calculate comfort zone region limits for other cities
+            // TODO: calculate comfort zone region limits using epw data and formula. Add rest of polygons
             let czT = data.filter( d => d.temp >= 20 && d.temp <= 27);
 
             let part80 = czT.filter(d => d.temp <= 25).map(({temp,hum8}) => ({temp, hum8})),
@@ -257,8 +253,7 @@
                 getFillFromSprite: false,
                 getStrokeFromSprite: false,
                 pointerOrientation: "horizontal",
-                dy: 100,
-                dx: 50
+                dx: 75
             });
 
             tooltip.get("background").setAll({
@@ -268,19 +263,25 @@
                 strokeOpacity: 0.8
             });
 
-            seriesCZ.set("tooltip", tooltip);
-            seriesCZ.fills.template.setAll({
+            let label = seriesCZ.children.push(am5.Label.new(root, {
+                id: "czLabel",
+                background: am5.Rectangle.new(root, {
+                    fill: am5.color(0x000000),
+                    fillOpacity: 0
+                }),
+                tooltip: tooltip,
+                paddingTop: 0,
+                paddingBottom: 0,
+                paddingLeft: 0,
+                paddingRight: 0,
                 tooltipHTML: "",
                 tooltipText: "{name}",
-                showTooltipOn: "click"
-            });
-
-            seriesCZ.fills.template.events.on("click", ev => {
+                showTooltipOn: "click",
+            }));
+            label.events.on("click", ev => {
                 let cz = ev.target;
                 cz.set("tooltipHTML","<img src=\"../gifs/10.gif\" width=\"500\">");
             });
-
-            let label = seriesCZ.children.push(am5.Label.new(root, {id: "czLabel"} ) );
 
             seriesCZ.data.setAll(czData);
             chart.set("CZ", seriesCZ);
@@ -298,7 +299,7 @@
             }));
             series.strokes.template.set("visible", false);
             series.bullets.push(() => {
-                var bulletCircle = am5.Circle.new(root, {
+                let bulletCircle = am5.Circle.new(root, {
                     radius: 2,
                     fill: am5.color("#00F"),
                     fillOpacity: 0.8,
@@ -420,6 +421,7 @@
                         posY = extentY[0]+(extentY[1]-extentY[0])/2,
 
                         label = am5.registry.entitiesById.czLabel; // get label by ID
+                        // TODO: pan label when graph is zoomed and panned
                     label.setAll({
                         text: "ZONA DE CONFORT",
                         fontSize: "0.9em",
@@ -428,8 +430,7 @@
                         x: posX,
                         y: posY,
                         centerX: am5.p50,
-                        centerY: am5.p50,
-                        layer: 30
+                        centerY: am5.p50
                     });
                 }
             });
@@ -468,10 +469,11 @@
                         yAxisRH.axisRanges.clear();
                         // adjust axes, ticks, and labels for epw data
                         setupAxes(altitude);
-                        // TODO: adjust CZ label position when reading epw
                         createDataSeries("Hourly Data Points", pointData);
                         createHeatSeries("Data Grid", heatData);
                         legend.data.setAll([chart.get("Data Grid"), chart.get("Hourly Data Points")]);
+                        // Bring confort zone to front
+                        chart.get("CZ").toFront();
 
                         // Update chart info
                         let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
@@ -566,13 +568,8 @@
                 max: 35,
                 strictMinMax: true,
                 maxDeviation: 0,
-                extraTooltipPrecision: 1,
                 renderer: am5xy.AxisRendererY.new(root, {
                     opposite: true,
-                }),
-                tooltip: am5.Tooltip.new(root, {
-                    themeTags: ["axis"],
-                    animationDuration: 300
                 })
             })
         );
@@ -588,6 +585,7 @@
                 x: 0,
                 strictMinMax: true,
                 maxDeviation: 0,
+                extraTooltipPrecision: 1,
                 renderer: am5xy.AxisRendererY.new(root, {
                     opposite: true,
                     minGridDistance: 50,
@@ -597,6 +595,10 @@
                     minorGridEnabled: true,
                     visible: true
                 }),
+                tooltip: am5.Tooltip.new(root, {
+                    themeTags: ["axis"],
+                    animationDuration: 300
+                })
             })
         );
 
@@ -625,7 +627,6 @@
                 strictMinMax: true,
                 maxDeviation: 0,
                 numberFormat: "#.'%'",
-                layer: 10,
                 renderer: am5xy.AxisRendererX.new(root, {
                     opposite: true,
                     minGridDistance: 50,
@@ -696,7 +697,7 @@
 
         // add chart info
         let chartInfo = root.container.children.push(am5.Label.new(root, {
-            text: "Arrastra y suelta un archivo .epw a la gráfica",
+            text: "Arrastra y suelta un archivo .epw sobre la gráfica",
             textAlign: "left",
             fontSize: "1em",
             y: 20,
