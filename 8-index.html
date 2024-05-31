@@ -355,7 +355,7 @@
             // Set up heat rules
             heatSeries.set("heatRules", [{
                 target: heatSeries.columns.template,
-                min: am5.color(0xfffb77),
+                min: am5.color(0xffffff),
                 max: am5.color(0xfe131a),
                 dataField: "value",
                 key: "fill"
@@ -730,7 +730,7 @@
         let heatLegend = chart.bottomAxesContainer.children.push(am5.HeatLegend.new(root, {
             orientation: "horizontal",
             endColor: am5.color(0xfe131a),
-            startColor: am5.color(0xfffb77),
+            startColor: am5.color(0xffffff),
             width: am5.p50,
             visible: false
         }));
