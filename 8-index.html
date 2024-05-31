@@ -51,7 +51,7 @@
 
     <script type="module">
         import {extent, flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-        import {epwJson} from "../jscripts/epw2json.js"
+        import {epwJson} from "./jscripts/epw2json.js"
         import * as Psychrolib from "./psychrolib.js"
 
         const  preventDefaults = e => {
@@ -280,7 +280,7 @@
             }));
             label.events.on("click", ev => {
                 let cz = ev.target;
-                cz.set("tooltipHTML","<img src=\"../gifs/10.gif\" width=\"500\">");
+                cz.set("tooltipHTML","<img src=\"./gifs/10.gif\" width=\"500\">");
             });
 
             seriesCZ.data.setAll(czData);
