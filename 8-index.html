@@ -355,7 +355,7 @@
             // Set up heat rules
             heatSeries.set("heatRules", [{
                 target: heatSeries.columns.template,
-                min: am5.color(0xffffff),
+                min: am5.color(0xfef0f1),
                 max: am5.color(0xfe131a),
                 dataField: "value",
                 key: "fill"
@@ -437,9 +437,53 @@
         }
 
         // function to read epw file
-        // TODO: add loading mask
         const readSingleFile = file => {
+            // Create a Loading Mask
+            let loadingMask = root.container.children.push(am5.Container.new(root, {
+                width: am5.p100,
+                height: am5.p100,
+                layer: 1000,
+                background: am5.Rectangle.new(root, {
+                    fill: am5.color(0xffffff),
+                    fillOpacity: 0.6,
+                })
+            }));
+
+            loadingMask.children.push(am5.Label.new(root, {
+                text: "Loading...",
+                fontSize: 25,
+                x: am5.p50,
+                y: am5.p50,
+                centerX: am5.p50,
+                centerY: am5.p50,
+            }));
+            
+            let hourGlass = loadingMask.children.push(am5.Graphics.new(root, {
+                width: 32,
+                height: 32,
+                fill: am5.color(0x000000),
+                x: am5.p50,
+                y: am5.p50,
+                centerX: am5.p50,
+                centerY: am5.p50,
+                dy: -45,                
+                svgPath: "M12 5v10l9 9-9 9v10h24V33l-9-9 9-9V5H12zm20 29v5H16v-5l8-8 8 8zm-8-12-8-8V9h16v5l-8 8z"
+            }));
+
+            let hourGlassAnimation = hourGlass.animate({
+                key: "rotation",
+                to: 180,
+                loops: Infinity,
+                duration: 1000,
+                easing: am5.ease.inOut(am5.ease.cubic)
+            });
+            
+            // Reading file
             if (file) {
+                // LOADING MASK → play/show
+                hourGlassAnimation.play();
+                loadingMask.show();
+                
                 let reader = new FileReader();
                 reader.onload = e => { // read as file
                     let contents = e.target.result,
@@ -478,6 +522,10 @@
                         // Update chart info
                         let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
                         chartInfo.set("text", chartInfoText);
+
+                        // LOADING MASK → pause/hide
+                        hourGlassAnimation.pause();
+                        loadingMask.hide();
                 };
                 reader.readAsText(file);
             } else {
