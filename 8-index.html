@@ -15,9 +15,6 @@
             max-width: 100%;
             margin: auto;
         }
-        #fileInput {
-            width: 500px;
-        }
         .highlight{
             filter: blur(5px);
         }
@@ -50,13 +47,13 @@
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
     <script type="module">
-        import {extent, flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-        import {epwJson} from "./jscripts/epw2json.js"
-        import * as Psychrolib from "./psychrolib.js"
+        import {rollups, min, max, mean, extent, flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+        import {epwJson} from "./jscripts/epw2json.js";
+        import * as Psychrolib from "./psychrolib.js";
 
-        const  preventDefaults = e => {
-            e.preventDefault()
-            e.stopPropagation()
+        const preventDefaults = e => {
+            e.preventDefault();
+            e.stopPropagation();
         }
         const highlight = e => {
             document.getElementById("chartdiv").classList.add("highlight");
@@ -71,7 +68,6 @@
             for (const file of files) {
                 if (!allowedExtensions.exec(file.name)) {
                     alert("Please upload file having extensions .epw or .csv only."); //TODO: add modal instead of alert
-                    fileInput.value = "";
                     return false;
                 } else {
                     return true;
@@ -211,7 +207,7 @@
         }
 
         // add comfort zone
-        const createCZSeries = data => {
+        const createCZSeries = (data, Tn) => {
             let seriesCZ = chart.series.push(am5xy.LineSeries.new(root, {
                 name: "CZ",
                 xAxis: xAxis,
@@ -220,7 +216,7 @@
                 valueXField: "t",
                 stroke: am5.color(0x000),
                 fill: am5.color("#35FE4C"),
-                layer: 30
+                layer: 50
             }));
 
             seriesCZ.strokes.template.setAll({
@@ -234,20 +230,26 @@
 
             seriesCZ.strokes.template.set("visible", true);
 
-            // TODO: calculate comfort zone region limits using epw data and formula. Add rest of polygons
-            let czT = data.filter( d => d.temp >= 20 && d.temp <= 27);
+            // define comfort zone region
+            // Tm = temp media mensual
+            // Tn = 17.6 + 0.31*Tm
+            // Zn = Tn +/- 2.5
+            // TODO: add rest of polygons for strategies
+            let ZnM = Tn - 2.5,
+                ZnP = Tn + 2.5,
+                czT = data.filter( d => d.temp >= ZnM && d.temp <= ZnP);
 
-            let part80 = czT.filter(d => d.temp <= 25).map(({temp,hum8}) => ({temp, hum8})),
-                part2750 = czT.filter(d => d.temp == 27).map(({temp,hum5}) => ({temp, hum5})),
-                part2720 = czT.filter(d => d.temp == 27).map(({temp,hum2}) => ({temp, hum2})),
+            let part80 = czT.filter(d => d.temp <= Tn).map(({temp,hum8}) => ({temp, hum8})),
+                part80to50 = czT.filter(d => d.temp == ZnP).map(({temp,hum5}) => ({temp, hum5})),
+                part50to20 = czT.filter(d => d.temp == ZnP).map(({temp,hum2}) => ({temp, hum2})),
                 part20 = czT.map(({temp,hum2}) => ({temp, hum2})),
 
                 p80Data = part80.map( d => { return {t: d.temp, ah: d.hum8}}),
-                p2750Data = part2750.map( d => { return {t: d.temp, ah: d.hum5}}),
-                p2720Data = part2720.map( d => { return {t: d.temp, ah: d.hum2}}),
+                p80to50Data = part80to50.map( d => { return {t: d.temp, ah: d.hum5}}),
+                p50to20Data = part50to20.map( d => { return {t: d.temp, ah: d.hum2}}),
                 p20Data = part20.map( d => { return {t: d.temp, ah: d.hum2}}),
 
-                czData = [p20Data[0]].concat(p80Data).concat(p2750Data).concat(p2720Data).concat(p20Data.reverse());
+                czData = [p20Data[0]].concat(p80Data).concat(p80to50Data).concat(p50to20Data).concat(p20Data.reverse());
 
             let tooltip = am5.Tooltip.new(root, {
                 getFillFromSprite: false,
@@ -374,7 +376,7 @@
             yHeatAxis.data.setAll(axisHums);
         }
 
-        const setupAxes = elevation => {
+        const setupAxes = (elevation, Tn) => {
             let psychroData = get_psychroData(elevation);
 
             // get temperature values where 40%-100% RH lines intersect with truncated axis
@@ -410,7 +412,7 @@
             });
 
             // Create comfort zone
-            let seriesCZ = createCZSeries(psychroData);
+            let seriesCZ = createCZSeries(psychroData, Tn);
             // adjust CZ label position
             seriesCZ.events.on("boundschanged", () => {
                 if (seriesCZ.dataItems[0].has("point")) { // if series is rendered, calculate region's center
@@ -457,7 +459,7 @@
                 centerX: am5.p50,
                 centerY: am5.p50,
             }));
-            
+
             let hourGlass = loadingMask.children.push(am5.Graphics.new(root, {
                 width: 32,
                 height: 32,
@@ -466,7 +468,7 @@
                 y: am5.p50,
                 centerX: am5.p50,
                 centerY: am5.p50,
-                dy: -45,                
+                dy: -45,
                 svgPath: "M12 5v10l9 9-9 9v10h24V33l-9-9 9-9V5H12zm20 29v5H16v-5l8-8 8 8zm-8-12-8-8V9h16v5l-8 8z"
             }));
 
@@ -477,55 +479,62 @@
                 duration: 1000,
                 easing: am5.ease.inOut(am5.ease.cubic)
             });
-            
+
             // Reading file
             if (file) {
                 // LOADING MASK → play/show
                 hourGlassAnimation.play();
                 loadingMask.show();
-                
+
                 let reader = new FileReader();
                 reader.onload = e => { // read as file
                     let contents = e.target.result,
                         raw = reader.result,
                         epw = epwJson(raw); // parse epw file as json
 
-                        let altitude = epw.elevation != undefined ? epw.elevation : 0;
-                        //set unit system - SI
-                        psychrolib.SetUnitSystem(psychrolib.SI);
-                        let pressure = psychrolib.GetStandardAtmPressure(altitude),
-
-                            // convert relative humidity from epw to absolute humidity to plot in chart
-                            pointData = epw.weatherData.map( d => {
-                                let ah = psychrolib.GetHumRatioFromRelHum(+d[6], +d[8]/100, pressure)*1000
-                                return {"t": +d[6],
-                                        "tFloor": Math.floor(d[6]),
-                                        "ah": ah,
-                                        "ahFloor": Math.floor(ah)}
+                    let altitude = epw.elevation != undefined ? epw.elevation : 0;
+                    //set unit system - SI
+                    psychrolib.SetUnitSystem(psychrolib.SI);
+                    let pressure = psychrolib.GetStandardAtmPressure(altitude),
+                        // convert relative humidity from epw to absolute humidity to plot in chart
+                        pointData = epw.weatherData.map( d => {
+                            let ah = psychrolib.GetHumRatioFromRelHum(+d[6], +d[8]/100, pressure)*1000;
+                            return {"t": +d[6],
+                                    "tFloor": Math.floor(d[6]),
+                                    "ah": ah,
+                                    "ahFloor": Math.floor(ah),
+                                    "month": +d[1]}
                         }),
-                            // sumarize data in  groups of temperature, absolute humidity, and number of observations
-                            heatData = flatRollup(pointData, d => d.length, d => d.tFloor, d => d.ahFloor)
-                                .map(d => { return {"t": d[0], "ah":d[1], "n":d[2]} });
+                        // sumarize data in  groups of temperature, absolute humidity, and number of observations
+                        heatData = flatRollup(pointData, d => d.length, d => d.tFloor, d => d.ahFloor)
+                            .map(d => { return {"t": d[0], "ah": d[1], "n": d[2]} });
 
-                        // remove all series and RH axes ticks and labels before adding new ones
-                        chart.series.clear()
-                        xAxisRH.axisRanges.clear();
-                        yAxisRH.axisRanges.clear();
-                        // adjust axes, ticks, and labels for epw data
-                        setupAxes(altitude);
-                        createDataSeries("Hourly Data Points", pointData);
-                        createHeatSeries("Data Grid", heatData);
-                        legend.data.setAll([chart.get("Data Grid"), chart.get("Hourly Data Points")]);
-                        // Bring confort zone to front
-                        chart.get("CZ").toFront();
+                    let meanTempByMonth = rollups(pointData, v => mean(v, d => d.t), d => d.month),
+                        meanTempObj = meanTempByMonth.map(d => { return {"month": d[0], "meanTemp": +d[1].toFixed(2)} }),
+                        minTempMonth = rollups(pointData, v => min(v, d => d.t), d => d.month),
+                        maxTempMonth = rollups(pointData, v => max(v, d => d.t), d => d.month),
+                        meanTemp = mean(meanTempObj, d => d.meanTemp).toFixed(1),
+                        Tn = +parseFloat(17.6 + 0.31*meanTemp).toFixed(2);
 
-                        // Update chart info
-                        let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
-                        chartInfo.set("text", chartInfoText);
+                    // remove all series and RH axes ticks and labels before adding new ones
+                    chart.series.clear();
+                    xAxisRH.axisRanges.clear();
+                    yAxisRH.axisRanges.clear();
+                    // adjust axes, ticks, and labels for epw data
+                    setupAxes(altitude, Tn);
+                    createDataSeries("Hourly Data Points", pointData);
+                    createHeatSeries("Data Grid", heatData);
+                    legend.data.setAll([chart.get("Data Grid"), chart.get("Hourly Data Points")]);
+                    // Bring confort zone to front
+                    chart.get("CZ").toFront();
 
-                        // LOADING MASK → pause/hide
-                        hourGlassAnimation.pause();
-                        loadingMask.hide();
+                    // Update chart info
+                    let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
+                    chartInfo.set("text", chartInfoText);
+
+                    // LOADING MASK → pause/hide
+                    hourGlassAnimation.pause();
+                    loadingMask.hide();
                 };
                 reader.readAsText(file);
             } else {
@@ -779,7 +788,7 @@
         let heatLegend = chart.bottomAxesContainer.children.push(am5.HeatLegend.new(root, {
             orientation: "horizontal",
             endColor: am5.color(0xfe131a),
-            startColor: am5.color(0xffffff),
+            startColor: am5.color(0xfef0f1),
             width: am5.p50,
             visible: false
         }));
@@ -797,7 +806,7 @@
         legendContainer.children.push(legend);
         legendContainer.children.push(heatLegend);
 
-        setupAxes(0);
+        setupAxes(0, 20);
     </script>
 
 </body>
