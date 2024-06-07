@@ -300,6 +300,7 @@
                 valueXField: "t",
             }));
             series.strokes.template.set("visible", false);
+            series.strokes.template.set("strokeOpacity", 0);
             series.bullets.push( () => {
                 let bulletCircle = am5.Circle.new(root, {
                     radius: 2,
@@ -333,7 +334,7 @@
             }));
 
             heatSeries.columns.template.setAll({
-                tooltipText: "Temperatura: {t}\nHumedad absoluta: {ah}\nObservaciones: {n}",
+                tooltipText: "Temperatura: {t} °C\nHumedad absoluta: {ah} g/kg\nObservaciones: {n}",
                 strokeOpacity: 0.5,
                 strokeWidth: 2,
                 fillOpacity: 0.95,
@@ -341,6 +342,7 @@
                 height: am5.percent(90)
             });
 
+            // FIXME: do not update color in grid legend square on hover
             heatSeries.columns.template.events.on("pointerover", event => {
                 let di = event.target.dataItem;
                 if (di) {
@@ -351,7 +353,6 @@
             heatSeries.events.on("datavalidated", () => {
                 heatLegend.set("startValue", heatSeries.getPrivate("valueLow"));
                 heatLegend.set("endValue", heatSeries.getPrivate("valueHigh"));
-                heatLegend.set("visible", true);
             });
 
             // Set up heat rules
@@ -521,10 +522,10 @@
                     xAxisRH.axisRanges.clear();
                     yAxisRH.axisRanges.clear();
                     // adjust axes, ticks, and labels for epw data
-                    setupAxes(altitude, Tn);
-                    createDataSeries("Hourly Data Points", pointData);
-                    createHeatSeries("Data Grid", heatData);
-                    legend.data.setAll([chart.get("Data Grid"), chart.get("Hourly Data Points")]);
+                    setupAxes(altitude, Tn); // TODO: update xAxis min limit from epw data
+                    createDataSeries("Datos horarios", pointData);
+                    createHeatSeries("Malla distribuida", heatData);
+                    legend.data.setAll([chart.get("Malla distribuida"), chart.get("Datos horarios")]);
                     // Bring confort zone to front
                     chart.get("CZ").toFront();
 
@@ -789,8 +790,7 @@
             orientation: "horizontal",
             endColor: am5.color(0xfe131a),
             startColor: am5.color(0xfef0f1),
-            width: am5.p50,
-            visible: false
+            width: am5.p50
         }));
         heatLegend.startLabel.set("fontSize", "0.75em");
         heatLegend.endLabel.set("fontSize", "0.75em");
@@ -807,6 +807,10 @@
         legendContainer.children.push(heatLegend);
 
         setupAxes(0, 20);
+        // initial fake legend
+        createDataSeries("Datos horarios", [{ah: 50, t: 11.5}]);
+        createHeatSeries("Malla distribuida", [{t: 11, ah: 50, n : 1}]);
+        legend.data.setAll([chart.get("Malla distribuida"), chart.get("Datos horarios")]);
     </script>
 
 </body>
