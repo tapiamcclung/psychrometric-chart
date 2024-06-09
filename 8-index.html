@@ -489,8 +489,8 @@
                     chartInfo.set("text", chartInfoText);
                 };
                 reader.readAsText(file);
-            } else {
-                alert("Failed to load file");
+            } else { 
+                openModalWrongFile(); // failed to load the file - Modal
             }
         };
 
@@ -530,6 +530,12 @@
         });
         let modalMoreFilesSetup = false;
 
+        // for failed to load the file
+        let modalFailLoadFile = am5.Modal.new(root, {
+            content: "<center>No se pudo cargar el archivo.<center>\n<center>Intente de nuevo.</center>"
+        });
+        let modalFailLoadFileSetup = false;
+
         function openModalWrongFile() {
             let okButton = document.createElement("input");
             okButton.type = "button";
@@ -553,6 +559,16 @@
                 modalMoreFiles.getPrivate("content").appendChild(okButton);
                 modalMoreFilesSetup = true;
                 modalMoreFiles.open();
+            } else
+
+            if (!modalFailLoadFileSetup) {
+                okButton.addEventListener("click", function() {
+                    modalFailLoadFile.close();
+                });
+
+                modalFailLoadFile.getPrivate("content").appendChild(okButton);
+                modalFailLoadFileSetup = true;
+                modalFailLoadFile.open();
             }
         };        
 
