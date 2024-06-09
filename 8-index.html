@@ -67,7 +67,7 @@
             let allowedExtensions = /(\.csv|\.epw)$/i;
             for (const file of files) {
                 if (!allowedExtensions.exec(file.name)) {
-                    alert("Please upload file having extensions .epw or .csv only."); //TODO: add modal instead of alert
+                    openModalWrongFile();
                     return false;
                 } else {
                     return true;
@@ -89,7 +89,7 @@
                         }
                     });
                 } else { // reject if it is more than one file
-                    alert("Please upload only one file"); //TODO: add modal instead of alert
+                    openModalWrongFile();
                 }
             }
         }
@@ -441,52 +441,7 @@
 
         // function to read epw file
         const readSingleFile = file => {
-            // Create a Loading Mask
-            let loadingMask = root.container.children.push(am5.Container.new(root, {
-                width: am5.p100,
-                height: am5.p100,
-                layer: 1000,
-                background: am5.Rectangle.new(root, {
-                    fill: am5.color(0xffffff),
-                    fillOpacity: 0.6,
-                })
-            }));
-
-            loadingMask.children.push(am5.Label.new(root, {
-                text: "Loading...",
-                fontSize: 25,
-                x: am5.p50,
-                y: am5.p50,
-                centerX: am5.p50,
-                centerY: am5.p50,
-            }));
-
-            let hourGlass = loadingMask.children.push(am5.Graphics.new(root, {
-                width: 32,
-                height: 32,
-                fill: am5.color(0x000000),
-                x: am5.p50,
-                y: am5.p50,
-                centerX: am5.p50,
-                centerY: am5.p50,
-                dy: -45,
-                svgPath: "M12 5v10l9 9-9 9v10h24V33l-9-9 9-9V5H12zm20 29v5H16v-5l8-8 8 8zm-8-12-8-8V9h16v5l-8 8z"
-            }));
-
-            let hourGlassAnimation = hourGlass.animate({
-                key: "rotation",
-                to: 180,
-                loops: Infinity,
-                duration: 1000,
-                easing: am5.ease.inOut(am5.ease.cubic)
-            });
-
-            // Reading file
             if (file) {
-                // LOADING MASK → play/show
-                hourGlassAnimation.play();
-                loadingMask.show();
-
                 let reader = new FileReader();
                 reader.onload = e => { // read as file
                     let contents = e.target.result,
@@ -532,10 +487,6 @@
                     // Update chart info
                     let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
                     chartInfo.set("text", chartInfoText);
-
-                    // LOADING MASK → pause/hide
-                    hourGlassAnimation.pause();
-                    loadingMask.hide();
                 };
                 reader.readAsText(file);
             } else {
@@ -565,6 +516,45 @@
                 paddingRight: 5,
             })
         );
+
+        // Add modal 
+        // for incorrect extension file
+        let modalIncoFile = am5.Modal.new(root, {
+            content: "<center>Seleccione únicamente archivos con extensión <strong>.epw</strong>/<strong>.csv</strong><center>"
+        });
+        let modalIncoFileSetup = false;
+
+        // for upload more than one file
+        let modalMoreFiles = am5.Modal.new(root, {
+            content: "<center>Seleccione únicamente un archivo<center>"
+        });
+        let modalMoreFilesSetup = false;
+
+        function openModalWrongFile() {
+            let okButton = document.createElement("input");
+            okButton.type = "button";
+            okButton.value = "OK";
+
+            if (!modalIncoFileSetup) {
+                okButton.addEventListener("click", function() {
+                    modalIncoFile.close();
+                });
+
+                modalIncoFile.getPrivate("content").appendChild(okButton);
+                modalIncoFileSetup = true;
+                modalIncoFile.open();
+            } else
+
+            if (!modalMoreFilesSetup) {
+                okButton.addEventListener("click", function() {
+                    modalMoreFiles.close();
+                });
+
+                modalMoreFiles.getPrivate("content").appendChild(okButton);
+                modalMoreFilesSetup = true;
+                modalMoreFiles.open();
+            }
+        };        
 
         // Add Cursor
         chart.set("cursor", am5xy.XYCursor.new(root, {}));
