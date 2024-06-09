@@ -64,10 +64,12 @@
             document.getElementById("upload").style.display = "none";
         }
         const validateExtension = files => {
+            loadingModal.open(); // OPEN Loading mask-modal
             let allowedExtensions = /(\.csv|\.epw)$/i;
             for (const file of files) {
                 if (!allowedExtensions.exec(file.name)) {
-                    openModalIncoFile();
+                    closeLoadingModal(); // CLOSE Loading mask-modal
+                    openModalIncoFile(); //rejection message
                     return false;
                 } else {
                     return true;
@@ -86,10 +88,12 @@
                         if (item.kind === "file") {
                             const file = item.getAsFile();
                             readSingleFile(file);
+                            closeLoadingModal(); //CLOSE Loading mask-modal !!!!!!!!!!!!!!!!!!!!!!!!
                         }
                     });
                 } else { // reject if it is more than one file
-                    openModalMoreFiles();
+                    closeLoadingModal(); // CLOSE Loading mask-modal
+                    openModalMoreFiles(); //rejection message
                 }
             }
         }
@@ -490,7 +494,8 @@
                 };
                 reader.readAsText(file);
             } else { 
-                openModalFailLoadFile(); // failed to load the file - Modal
+                closeLoadingModal(); // CLOSE Loading mask-modal
+                openModalFailLoadFile(); // failed to load the file - Message/Modal
             }
         };
 
@@ -580,6 +585,16 @@
                 modalFailLoadFile.open();
             }
         };
+
+        // Loading Modal
+        let loadingModal = am5.Modal.new(root, {
+            content: "<img src=\"./gifs/loading.gif\" width=\"50\">"
+        });
+        // loadingModal.open(); // OPEN Loading mask-modal
+        
+        function closeLoadingModal() {
+            loadingModal.close();
+        }; // sé que se no hay necesidad de crear function, pero quería intentar
 
         // Add Cursor
         chart.set("cursor", am5xy.XYCursor.new(root, {}));
