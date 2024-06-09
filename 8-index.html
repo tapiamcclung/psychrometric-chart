@@ -67,7 +67,7 @@
             let allowedExtensions = /(\.csv|\.epw)$/i;
             for (const file of files) {
                 if (!allowedExtensions.exec(file.name)) {
-                    openModalWrongFile();
+                    openModalIncoFile();
                     return false;
                 } else {
                     return true;
@@ -89,7 +89,7 @@
                         }
                     });
                 } else { // reject if it is more than one file
-                    openModalWrongFile();
+                    openModalMoreFiles();
                 }
             }
         }
@@ -490,7 +490,7 @@
                 };
                 reader.readAsText(file);
             } else { 
-                openModalWrongFile(); // failed to load the file - Modal
+                openModalFailLoadFile(); // failed to load the file - Modal
             }
         };
 
@@ -517,31 +517,18 @@
             })
         );
 
-        // Add modal 
-        // for incorrect extension file
+        // Add modals
+        // MODAL - incorrect extension file
         let modalIncoFile = am5.Modal.new(root, {
             content: "<center>Seleccione únicamente archivos con extensión <strong>.epw</strong>/<strong>.csv</strong><center>"
         });
         let modalIncoFileSetup = false;
 
-        // for upload more than one file
-        let modalMoreFiles = am5.Modal.new(root, {
-            content: "<center>Seleccione únicamente un archivo<center>"
-        });
-        let modalMoreFilesSetup = false;
-
-        // for failed to load the file
-        let modalFailLoadFile = am5.Modal.new(root, {
-            content: "<center>No se pudo cargar el archivo.<center>\n<center>Intente de nuevo.</center>"
-        });
-        let modalFailLoadFileSetup = false;
-
-        function openModalWrongFile() {
-            let okButton = document.createElement("input");
-            okButton.type = "button";
-            okButton.value = "OK";
-
+        function openModalIncoFile() {
             if (!modalIncoFileSetup) {
+                let okButton = document.createElement("input");
+                okButton.type = "button";
+                okButton.value = "OK";
                 okButton.addEventListener("click", function() {
                     modalIncoFile.close();
                 });
@@ -549,9 +536,20 @@
                 modalIncoFile.getPrivate("content").appendChild(okButton);
                 modalIncoFileSetup = true;
                 modalIncoFile.open();
-            } else
+            }
+        };
 
+        // MODAL - upload more than one file
+        let modalMoreFiles = am5.Modal.new(root, {
+            content: "<center>Seleccione sólo un archivo.<center>"
+        });
+        let modalMoreFilesSetup = false;
+        
+        function openModalMoreFiles() {
             if (!modalMoreFilesSetup) {
+                let okButton = document.createElement("input");
+                okButton.type = "button";
+                okButton.value = "OK";
                 okButton.addEventListener("click", function() {
                     modalMoreFiles.close();
                 });
@@ -559,9 +557,20 @@
                 modalMoreFiles.getPrivate("content").appendChild(okButton);
                 modalMoreFilesSetup = true;
                 modalMoreFiles.open();
-            } else
+            }
+        };
 
+        // MODAL - failed to load the file
+        let modalFailLoadFile = am5.Modal.new(root, {
+            content: "<center>No se pudo cargar el archivo.<center>\n<center>Intente de nuevo.</center>"
+        });
+        let modalFailLoadFileSetup = false;
+
+        function openModalFailLoadFile() {
             if (!modalFailLoadFileSetup) {
+                let okButton = document.createElement("input");
+                okButton.type = "button";
+                okButton.value = "OK";
                 okButton.addEventListener("click", function() {
                     modalFailLoadFile.close();
                 });
@@ -570,7 +579,7 @@
                 modalFailLoadFileSetup = true;
                 modalFailLoadFile.open();
             }
-        };        
+        };
 
         // Add Cursor
         chart.set("cursor", am5xy.XYCursor.new(root, {}));
