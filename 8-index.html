@@ -97,6 +97,8 @@
                 }
             }
         }
+        // FIXME: if error modal opens and then a correct file is used, chart is unresponsive
+        // FIXME: error modals onLy open up once.
 
         ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
             document.getElementById("chartdiv").addEventListener(eventName, preventDefaults, false);
@@ -493,7 +495,7 @@
                     chartInfo.set("text", chartInfoText);
                 };
                 reader.readAsText(file);
-            } else { 
+            } else {
                 closeLoadingModal(); // CLOSE Loading mask-modal
                 openModalFailLoadFile(); // failed to load the file - Message/Modal
             }
@@ -549,7 +551,7 @@
             content: "<center>Seleccione sólo un archivo.<center>"
         });
         let modalMoreFilesSetup = false;
-        
+
         function openModalMoreFiles() {
             if (!modalMoreFilesSetup) {
                 let okButton = document.createElement("input");
@@ -591,7 +593,7 @@
             content: "<img src=\"./gifs/loading.gif\" width=\"50\">"
         });
         // loadingModal.open(); // OPEN Loading mask-modal
-        
+
         function closeLoadingModal() {
             loadingModal.close();
         }; // sé que se no hay necesidad de crear function, pero quería intentar
@@ -619,6 +621,7 @@
             am5xy.ValueAxis.new(root, {
                 min: 0,
                 max: 50,
+                autoZoom: false,
                 strictMinMax: true,
                 maxDeviation: 0,
                 extraTooltipPrecision: 1,
@@ -655,6 +658,7 @@
             am5xy.ValueAxis.new(root, {
                 min: 0,
                 max: 35,
+                autoZoom: false,
                 strictMinMax: true,
                 maxDeviation: 0,
                 renderer: am5xy.AxisRendererY.new(root, {
@@ -672,6 +676,7 @@
                 min: 0,
                 max: 35,
                 x: 0,
+                autoZoom: false,
                 strictMinMax: true,
                 maxDeviation: 0,
                 extraTooltipPrecision: 1,
@@ -713,6 +718,7 @@
             am5xy.ValueAxis.new(root, {
                 min: 0,
                 max: 50,
+                autoZoom: false,
                 strictMinMax: true,
                 maxDeviation: 0,
                 numberFormat: "#.'%'",
@@ -734,6 +740,7 @@
             am5xy.ValueAxis.new(root, {
                 min: 0,
                 max: 35,
+                autoZoom: false,
                 strictMinMax: true,
                 maxDeviation: 0,
                 numberFormat: "#.'%'",
@@ -782,7 +789,6 @@
         yHeatRenderer.labels.template.set("forceHidden", true);
 
         //TODO: fix heatLegend tooltip font size
-        //TODO: fix zoom. It either zooms out automatically or grid zooms in and background returns
 
         // add chart info
         let chartInfo = root.container.children.push(am5.Label.new(root, {
