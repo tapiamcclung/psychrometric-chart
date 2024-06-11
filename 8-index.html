@@ -98,7 +98,7 @@
             }
         }
         // FIXME: if error modal opens and then a correct file is used, chart is unresponsive
-        // FIXME: error modals onLy open up once.
+        // FIXME: error modals only open up once.
 
         ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
             document.getElementById("chartdiv").addEventListener(eventName, preventDefaults, false);
@@ -257,40 +257,6 @@
 
                 czData = [p20Data[0]].concat(p80Data).concat(p80to50Data).concat(p50to20Data).concat(p20Data.reverse());
 
-            let tooltip = am5.Tooltip.new(root, {
-                getFillFromSprite: false,
-                getStrokeFromSprite: false,
-                pointerOrientation: "horizontal",
-                dx: 75
-            });
-
-            tooltip.get("background").setAll({
-                fill: am5.color(0xffffff),
-                fillOpacity: 0.8,
-                stroke: am5.color(0x000000),
-                strokeOpacity: 0.8
-            });
-
-            let label = seriesCZ.children.push(am5.Label.new(root, {
-                id: "czLabel",
-                background: am5.Rectangle.new(root, {
-                    fill: am5.color(0x000000),
-                    fillOpacity: 0
-                }),
-                tooltip: tooltip,
-                paddingTop: 0,
-                paddingBottom: 0,
-                paddingLeft: 0,
-                paddingRight: 0,
-                tooltipHTML: "",
-                tooltipText: "{name}",
-                showTooltipOn: "click",
-            }));
-            label.events.on("click", ev => {
-                let cz = ev.target;
-                cz.set("tooltipHTML","<img src=\"./gifs/10.gif\" width=\"500\">");
-            });
-
             seriesCZ.data.setAll(czData);
             chart.set("CZ", seriesCZ);
             return seriesCZ;
@@ -429,18 +395,49 @@
                         posX = extentX[0]+(extentX[1]-extentX[0])/2,
                         posY = extentY[0]+(extentY[1]-extentY[0])/2,
 
-                        label = am5.registry.entitiesById.czLabel; // get label by ID
-                        // TODO: pan label when graph is zoomed and panned
-                    label.setAll({
-                        text: "ZONA DE CONFORT",
-                        fontSize: "0.9em",
-                        fontWeight: "600",
-                        opacity: 0.9,
-                        x: posX,
-                        y: posY,
-                        centerX: am5.p50,
-                        centerY: am5.p50
+                        axisPosition = xAxis.valueToPosition(Tn),
+                        seriesDataItem = xAxis.getSeriesItem(seriesCZ, axisPosition, 0);
+                    // clear bullets
+                    seriesCZ.bulletsContainer.children.clear();
+                    seriesCZ.bullets.clear();
+                    // define bullet template
+                    let bulletTemplate = am5.Template.new({});
+                    bulletTemplate.events.on("click", ev => {
+                        let cz = ev.target;
+                        cz.set("tooltipHTML","<img src=\"./gifs/10.gif\" width=\"500\">");
+                        // TODO: show tooltip when clicking on CZ instead of label?
                     });
+                    // FIXME: need to click twice for first tooltip to appear
+                    let tooltip = am5.Tooltip.new(root, {
+                        getFillFromSprite: false,
+                        getStrokeFromSprite: false,
+                        pointerOrientation: "horizontal",
+                        dx: 75,
+                        layer: 50
+                    });
+                    tooltip.get("background").setAll({
+                        fill: am5.color(0xffffff),
+                        fillOpacity: 0.5,
+                        stroke: am5.color(0x000000),
+                        strokeOpacity: 0.8
+                    });
+                    seriesCZ.addBullet(seriesDataItem, am5.Bullet.new(root, {
+                        sprite: am5.Label.new(root, {
+                            background: am5.Rectangle.new(root, {
+                                fill: am5.color(0x000000),
+                                fillOpacity: 0
+                            }),
+                            text: "ZONA DE CONFORT",
+                            fontSize: "0.9em",
+                            fontWeight: "600",
+                            opacity: 0.9,
+                            centerY: am5.p50,
+                            centerX: am5.p50,
+                            dy: (extentY[1]-extentY[0])/2*0.75,
+                            tooltip: tooltip,
+                            showTooltipOn: "click"
+                        }, bulletTemplate)
+                    }));
                 }
             });
         }
