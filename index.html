@@ -33,9 +33,7 @@
                     <span class="material-symbols-outlined" style="position:relative; top:4px" >calendar_today</span>
                     Fecha
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mx-2" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
-                        <span class="material-symbols-outlined">menu</span>
-                    </button>
+
                 </div>
                 </div>
                 <span id="upload" class="material-symbols-outlined">upload_file</span>
@@ -49,7 +47,7 @@
             <h5 class="offcanvas-title" id="offcanvasLabel">Estrategias</h5>
             <button type="button" class="btn-close btn-close-white text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
-        <div class="offcanvas-body">
+        <div class="offcanvas-body p-0">
             <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
                 <li class="nav-item">
                     <a class="nav-link active" aria-current="page" href="#">Estrategia 1</a>
@@ -245,19 +243,36 @@
                 valueXField: "t",
                 stroke: am5.color(0x000),
                 fill: am5.color("#35FE4C"),
-                layer: 50
+                layer: 50,
+                cursorOverStyle: "pointer"
             }));
 
             seriesCZ.strokes.template.setAll({
-                strokeWidth: 3,
+                strokeWidth: 1,
                 strokeOpacity: 0.7,
             });
             seriesCZ.fills.template.setAll({
                 fillOpacity: 0.25,
-                visible: true
+                visible: true,
+                interactive: true
             });
 
             seriesCZ.strokes.template.set("visible", true);
+            seriesCZ.fills.template.states.create("hover", {
+                fill: am5.color(0x297373)
+            });
+            seriesCZ.events.on("pointerover", ev => {
+                let cz = ev.target;
+                cz.strokes.template.setAll({
+                    strokeWidth: 3
+                });
+            });
+            seriesCZ.events.on("pointerout", ev => {
+                let cz = ev.target;
+                cz.strokes.template.setAll({
+                    strokeWidth: 1
+                });
+            });
 
             // define comfort zone region
             // Tm = temp media mensual
@@ -409,6 +424,14 @@
 
             // Create comfort zone
             let seriesCZ = createCZSeries(psychroData, Tn);
+            seriesCZ.events.on("click", e => {
+                let myOffcanvas = document.getElementById("offcanvasNavbar"),
+                    bsOffcanvas = new bootstrap.Offcanvas(myOffcanvas),
+                    img = "<img src='./gifs/10.gif' width='399'>";
+                // TODO: get list of gifs per strategy to add to sidebar
+                myOffcanvas.getElementsByClassName("offcanvas-body")[0].innerHTML = img;
+                bsOffcanvas.show();
+            });
             // adjust CZ label position
             seriesCZ.events.on("boundschanged", () => {
                 if (seriesCZ.dataItems[0].has("point")) { // if series is rendered, calculate region's center
@@ -423,33 +446,9 @@
                     // clear bullets
                     seriesCZ.bulletsContainer.children.clear();
                     seriesCZ.bullets.clear();
-                    // define bullet template
-                    let bulletTemplate = am5.Template.new({});
-                    bulletTemplate.events.on("click", ev => {
-                        let cz = ev.target;
-                        cz.set("tooltipHTML","<img src=\"./gifs/10.gif\" width=\"500\">");
-                        // TODO: show tooltip when clicking on CZ instead of label?
-                    });
-                    // FIXME: need to click twice for first tooltip to appear
-                    let tooltip = am5.Tooltip.new(root, {
-                        getFillFromSprite: false,
-                        getStrokeFromSprite: false,
-                        pointerOrientation: "horizontal",
-                        dx: 75,
-                        layer: 50
-                    });
-                    tooltip.get("background").setAll({
-                        fill: am5.color(0xffffff),
-                        fillOpacity: 0.5,
-                        stroke: am5.color(0x000000),
-                        strokeOpacity: 0.8
-                    });
+                    // add bullet
                     seriesCZ.addBullet(seriesDataItem, am5.Bullet.new(root, {
                         sprite: am5.Label.new(root, {
-                            background: am5.Rectangle.new(root, {
-                                fill: am5.color(0x000000),
-                                fillOpacity: 0
-                            }),
                             text: "ZONA DE CONFORT",
                             fontSize: "0.9em",
                             fontWeight: "600",
@@ -457,9 +456,7 @@
                             centerY: am5.p50,
                             centerX: am5.p50,
                             dy: (extentY[1]-extentY[0])/2*0.75,
-                            tooltip: tooltip,
-                            showTooltipOn: "click"
-                        }, bulletTemplate)
+                        })
                     }));
                 }
             });
