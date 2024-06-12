@@ -4,44 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Psychrometric chart</title>
-    <style>
-        body {
-            font-family: "Segoe UI";
-            height: 100%;
-       }
-        #chartdiv {
-            width: 95%;
-            height: calc(100vh - 10px);
-            max-width: 100%;
-            margin: auto;
-        }
-        .highlight{
-            filter: blur(5px);
-        }
-        .material-symbols-outlined {
-            font-variation-settings:
-            "FILL" 0,
-            "wght" 100,
-            "GRAD" 200,
-            "opsz" 48
-        }
-        #upload {
-            display: none;
-            position: absolute;
-            z-index: 100;
-            top: 50%;
-            left: calc(50% - 100px);
-            font-size: 200px;
-            pointer-events: none;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link href="./css/dashboard.css" rel="stylesheet">
 </head>
 <body>
+    <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">Diagrama psicrométrico</a>
+        <!--<input class="form-control form-control-dark w-100" type="text" placeholder="Search" aria-label="Search">-->
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap">
+                <a class="nav-link px-3" href="#">Sign out</a>
+            </div>
+        </div>
+    </header>
 
-    <span id="upload" class="material-symbols-outlined">upload_file</span>
-    <div id="chartdiv"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <main class="col-md-12 ms-sm-auto col-lg-12 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                  <h1 class="h2">Gráfica</h1>
+                  <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                      <button type="button" class="btn btn-sm btn-outline-secondary">Compartir</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary">Exportar</button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle">
+                    <span class="material-symbols-outlined" style="position:relative; top:4px" >calendar_today</span>
+                    Fecha
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mx-2" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+                        <span class="material-symbols-outlined">menu</span>
+                    </button>
+                </div>
+                </div>
+                <span id="upload" class="material-symbols-outlined">upload_file</span>
+                <div id="chartdiv"></div>
+            </main>
+        </div>
+      </div>
 
+    <div class="offcanvas offcanvas-end" data-bs-scroll="true" data-bs-backdrop="true" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbar" style="visibility: hidden;" aria-modal="true" role="dialog">
+        <div class="offcanvas-header bg-success text-white">
+            <h5 class="offcanvas-title" id="offcanvasLabel">Estrategias</h5>
+            <button type="button" class="btn-close btn-close-white text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="#">Estrategia 1</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Estrategia 2</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Estrategia 3</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
@@ -585,9 +608,11 @@
             }
         };
 
+        // TODO: use Bootstrap modals instead and recycle them
         // Loading Modal
         let loadingModal = am5.Modal.new(root, {
             content: "<img src=\"./gifs/loading.gif\" width=\"50\">"
+            // TODO: use Material Symbols and animate wght/FILL using CSS
         });
         // loadingModal.open(); // OPEN Loading mask-modal
 
