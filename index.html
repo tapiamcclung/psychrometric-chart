@@ -236,7 +236,7 @@
         // add comfort zone
         const createCZSeries = (data, Tn) => {
             let seriesCZ = chart.series.push(am5xy.LineSeries.new(root, {
-                name: "CZ",
+                name: "Zona De Confort",
                 xAxis: xAxis,
                 yAxis: yAxis,
                 valueYField: "ah",
@@ -296,7 +296,7 @@
                 czData = [p20Data[0]].concat(p80Data).concat(p80to50Data).concat(p50to20Data).concat(p20Data.reverse());
 
             seriesCZ.data.setAll(czData);
-            chart.set("CZ", seriesCZ);
+            chart.set("Zona de Confort", seriesCZ);
             return seriesCZ;
         }
 
@@ -503,9 +503,9 @@
                     setupAxes(altitude, Tn); // TODO: update xAxis min limit from epw data
                     createDataSeries("Datos horarios", pointData);
                     createHeatSeries("Malla distribuida", heatData);
-                    legend.data.setAll([chart.get("Malla distribuida"), chart.get("Datos horarios")]);
+                    legend.data.setAll([chart.get("Malla distribuida"), chart.get("Datos horarios"), chart.get("Zona de Confort")]);
                     // Bring confort zone to front
-                    chart.get("CZ").toFront();
+                    chart.get("Zona de Confort").toFront();
 
                     // Update chart info
                     let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
@@ -865,7 +865,7 @@
         // initial fake legend
         createDataSeries("Datos horarios", [{ah: 50, t: 11.5}]);
         createHeatSeries("Malla distribuida", [{t: 11, ah: 50, n : 1}]);
-        legend.data.setAll([chart.get("Malla distribuida"), chart.get("Datos horarios")]);
+        legend.data.setAll([chart.get("Malla distribuida"), chart.get("Datos horarios"), chart.get("Zona de Confort")]);
     </script>
 
 </body>
