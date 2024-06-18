@@ -62,6 +62,21 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalWindow" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="modalWindowTitle" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="modalWindowTitle">Leyendo archivo</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body text-center" id="modalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
@@ -71,6 +86,55 @@
         import {rollups, min, max, mean, extent, flatRollup} from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         import {epwJson} from "./js/epw2json.js";
         import * as Psychrolib from "./js/psychrolib.js";
+
+        let modal = document.getElementById("modalWindow"),
+            bsModal = new bootstrap.Modal(modal),
+            modalHeader = modal.querySelector(".modal-header"),
+            modalHeaderClose = modal.querySelector(".btn-close"),
+            modalTitle = modal.querySelector(".modal-title"),
+            modalBody = modal.querySelector(".modal-body"),
+            modalFooter = modal.querySelector(".modal-footer");
+
+        modal.addEventListener("show.bs.modal", ev => {
+            modalHeader.classList.add("bg-info", "text-white");
+            modalHeaderClose.classList.add("visually-hidden");
+            modalTitle.innerHTML = "<span class='material-symbols-outlined'>description</span> Cargando archivo";
+            modalBody.innerHTML = "<span class='material-symbols-outlined spin fs-1'>progress_activity</span>";
+            modalFooter.classList.add("visually-hidden");
+        });
+
+        modal.addEventListener("shown.bs.modal", ev => {
+            let files = ev.target.files,
+                dt = ev.target.dataTransfer,
+                validFile = validateExtension(files);
+            if (validFile) {
+                if (dt.items.length == 1 ) { // process if it is only one file
+                    // Use DataTransferItemList interface to access the file(s)
+                    [...dt.items].forEach( (item, i) => {
+                        // If dropped items aren't files, reject them
+                        if (item.kind === "file") {
+                            const file = item.getAsFile();
+                            readSingleFile(file);
+                        }
+                    });
+                } else { // reject if it is more than one file
+                    modalHeader.classList.remove("bg-info", "bg-danger", "text-white");
+                    modalHeader.classList.add("bg-warning");
+                    modalHeaderClose.classList.remove("visually-hidden");
+                    modalTitle.innerHTML = "<span class='material-symbols-outlined pulse'>warning</span> Atención";
+                    modalBody.innerHTML = "Arrastra un solo archivo";
+                    modalFooter.classList.remove("visually-hidden");
+                }
+            }
+        });
+
+        modal.addEventListener("hidden.bs.modal", e => {
+            modalHeader.classList.remove("bg-info", "bg-danger", "bg-warning", "text-white",);
+            modalHeaderClose.classList.remove("visually-hidden");
+            modalTitle.innerHTML = "";
+            modalBody.innerHTML = "";
+            modalFooter.classList.remove("visually-hidden");
+        });
 
         const preventDefaults = e => {
             e.preventDefault();
@@ -85,12 +149,14 @@
             document.getElementById("upload").style.display = "none";
         }
         const validateExtension = files => {
-            loadingModal.open(); // OPEN Loading mask-modal
             let allowedExtensions = /(\.csv|\.epw)$/i;
             for (const file of files) {
                 if (!allowedExtensions.exec(file.name)) {
-                    closeLoadingModal(); // CLOSE Loading mask-modal
-                    openModalIncoFile(); //rejection message
+                    modalHeader.classList.add("bg-danger", "text-white");
+                    modalHeaderClose.classList.remove("visually-hidden");
+                    modalTitle.innerHTML = "<span class='material-symbols-outlined pulse'>error</span> Error";
+                    modalBody.innerHTML = "<span class='text-danger'>Usa solo archivos con extensión .epw o .csv</span>";
+                    modalFooter.classList.remove("visually-hidden");
                     return false;
                 } else {
                     return true;
@@ -99,27 +165,12 @@
         }
         const processFile = e => {
             let dt = e.dataTransfer,
-                files = dt.files,
-                validFile = validateExtension(files);
-            if (validFile) {
-                if (dt.items.length == 1 ) { // process if it is only one file
-                    // Use DataTransferItemList interface to access the file(s)
-                    [...dt.items].forEach( (item, i) => {
-                        // If dropped items aren't files, reject them
-                        if (item.kind === "file") {
-                            const file = item.getAsFile();
-                            readSingleFile(file);
-                            closeLoadingModal(); //CLOSE Loading mask-modal !!!!!!!!!!!!!!!!!!!!!!!!
-                        }
-                    });
-                } else { // reject if it is more than one file
-                    closeLoadingModal(); // CLOSE Loading mask-modal
-                    openModalMoreFiles(); //rejection message
-                }
-            }
+                files = dt.files;
+
+            modal.dataTransfer = dt;
+            modal.files = files;
+            bsModal.show();
         }
-        // FIXME: if error modal opens and then a correct file is used, chart is unresponsive
-        // FIXME: error modals only open up once.
 
         ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
             document.getElementById("chartdiv").addEventListener(eventName, preventDefaults, false);
@@ -466,6 +517,7 @@
         const readSingleFile = file => {
             if (file) {
                 let reader = new FileReader();
+                reader.readAsText(file);
                 reader.onload = e => { // read as file
                     let contents = e.target.result,
                         raw = reader.result,
@@ -510,11 +562,15 @@
                     // Update chart info
                     let chartInfoText = `${epw.stationLocation}, ${epw.country}\nElevación: ${epw.elevation} m\nLatitud: ${epw.latitude}\nLongitud: ${epw.longitude}`;
                     chartInfo.set("text", chartInfoText);
+                    bsModal.hide();
                 };
-                reader.readAsText(file);
             } else {
-                closeLoadingModal(); // CLOSE Loading mask-modal
-                openModalFailLoadFile(); // failed to load the file - Message/Modal
+                modalHeader.classList.remove("bg-info", "bg-warning");
+                modalHeader.classList.add("bg-danger", "text-white");
+                modalHeaderClose.classList.remove("visually-hidden");
+                modalTitle.innerHTML = "<span class='material-symbols-outlined'>error</span> Error";
+                modalBody.innerHTML = "<span class='text-danger'>No se pudo cargar el archivo. Intente de nuevo</span>";;
+                modalFooter.classList.remove("visually-hidden");
             }
         };
 
@@ -541,82 +597,6 @@
             })
         );
 
-        // Add modals
-        // MODAL - incorrect extension file
-        let modalIncoFile = am5.Modal.new(root, {
-            content: "<center>Seleccione únicamente archivos con extensión <strong>.epw</strong>/<strong>.csv</strong><center>"
-        });
-        let modalIncoFileSetup = false;
-
-        function openModalIncoFile() {
-            if (!modalIncoFileSetup) {
-                let okButton = document.createElement("input");
-                okButton.type = "button";
-                okButton.value = "OK";
-                okButton.addEventListener("click", function() {
-                    modalIncoFile.close();
-                });
-
-                modalIncoFile.getPrivate("content").appendChild(okButton);
-                modalIncoFileSetup = true;
-                modalIncoFile.open();
-            }
-        };
-
-        // MODAL - upload more than one file
-        let modalMoreFiles = am5.Modal.new(root, {
-            content: "<center>Seleccione sólo un archivo.<center>"
-        });
-        let modalMoreFilesSetup = false;
-
-        function openModalMoreFiles() {
-            if (!modalMoreFilesSetup) {
-                let okButton = document.createElement("input");
-                okButton.type = "button";
-                okButton.value = "OK";
-                okButton.addEventListener("click", function() {
-                    modalMoreFiles.close();
-                });
-
-                modalMoreFiles.getPrivate("content").appendChild(okButton);
-                modalMoreFilesSetup = true;
-                modalMoreFiles.open();
-            }
-        };
-
-        // MODAL - failed to load the file
-        let modalFailLoadFile = am5.Modal.new(root, {
-            content: "<center>No se pudo cargar el archivo.<center>\n<center>Intente de nuevo.</center>"
-        });
-        let modalFailLoadFileSetup = false;
-
-        function openModalFailLoadFile() {
-            if (!modalFailLoadFileSetup) {
-                let okButton = document.createElement("input");
-                okButton.type = "button";
-                okButton.value = "OK";
-                okButton.addEventListener("click", function() {
-                    modalFailLoadFile.close();
-                });
-
-                modalFailLoadFile.getPrivate("content").appendChild(okButton);
-                modalFailLoadFileSetup = true;
-                modalFailLoadFile.open();
-            }
-        };
-
-        // TODO: use Bootstrap modals instead and recycle them
-        // Loading Modal
-        let loadingModal = am5.Modal.new(root, {
-            content: "<img src=\"./gifs/loading.gif\" width=\"50\">"
-            // TODO: use Material Symbols and animate wght/FILL using CSS
-        });
-        // loadingModal.open(); // OPEN Loading mask-modal
-
-        function closeLoadingModal() {
-            loadingModal.close();
-        }; // sé que se no hay necesidad de crear function, pero quería intentar
-
         // Add Cursor
         chart.set("cursor", am5xy.XYCursor.new(root, {}));
         let cursor = chart.get("cursor");
@@ -624,14 +604,12 @@
         cursor.lineX.setAll({
             stroke: am5.color(0x550000),
             strokeWidth: 0.7,
-            // strokeOpacity: 0.6,
             strokeDasharray: [3, 3],
         });
 
         cursor.lineY.setAll({
             stroke: am5.color(0x550000),
             strokeWidth: 0.7,
-            // strokeOpacity: 0.6,
             strokeDasharray: [4, 3],
         });
 
