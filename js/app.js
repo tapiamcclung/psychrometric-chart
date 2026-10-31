@@ -373,6 +373,7 @@
       note = 'Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. Boundaries are editable in js/givoni.js.';
     }
     cache.comfort = zones.map(function (z) {
+      if (z.zone) z.tail = densify([z.poly[z.poly.length - 1], z.poly[0]], 0.25, 0.0004);
       z.poly = densify(z.poly, 0.25, 0.0004);
       return z;
     });
@@ -742,6 +743,34 @@
 
   function drawComfort() {
     cache.comfort.forEach(function (z) {
+      var gz = z.zone;
+      if (gz) { // Givoni zone: dark outline, optional fill, dotted/dashed variants
+        if (gz.fill) {
+          pathFrom(z.poly);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(' + gz.fill + ')';
+          ctx.fill();
+        }
+        ctx.strokeStyle = '#3b3f45';
+        ctx.lineWidth = 2.2;
+        ctx.lineJoin = 'round';
+        ctx.setLineDash(gz.dash || []);
+        pathFrom(z.poly);
+        if (gz.close === undefined) ctx.closePath();
+        ctx.stroke();
+        ctx.setLineDash([2, 4]);
+        ctx.lineWidth = 1.6;
+        if (gz.close === 'dotted') {
+          pathFrom(z.tail);
+          ctx.stroke();
+        }
+        (gz.extra || []).forEach(function (seg) {
+          pathFrom(densify(seg.map(function (v) { return [v[0], v[1] / 1000]; }), 0.25, 0.0004));
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+        return;
+      }
       var rgb = z.zone ? z.zone.rgb : COLORS.accentRgb;
       pathFrom(z.poly);
       ctx.closePath();
@@ -755,61 +784,24 @@
 
   function drawGivoniLabels() {
     if (state.comfort !== 'givoni') return;
-    var font = getComputedStyle(document.body).fontFamily;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    cache.comfort.forEach(function (z) {
-      if (!z.zone || !z.zone.label) return;
-      var s = toScreen(z.zone.label[0], z.zone.label[1] / 1000);
-      if (!insidePlot(s, -8)) return;
-      ctx.font = '700 10px ' + font;
-      var w = ctx.measureText(z.zone.code).width + 8;
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.strokeStyle = 'rgb(' + z.zone.rgb + ')';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.rect(s[0] - w / 2, s[1] - 8, w, 16);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = 'rgb(' + z.zone.rgb + ')';
-      ctx.fillText(z.zone.code, s[0], s[1] + 0.5);
-    });
-
-    var shown = G.zones.filter(function (gz) { return gz.show; }).slice().reverse();
-    if (!shown.length) return;
-    var readout = $('readout');
-    var overlay = window.innerWidth > 860 && readout.offsetWidth;
-    var x = plot.x0 + (overlay ? readout.offsetWidth + 20 : 10);
-    var y = plot.y0 + 10;
-    ctx.font = '11px ' + font;
-    var width = 0;
-    shown.forEach(function (gz) {
-      width = Math.max(width, ctx.measureText(gz.name).width);
-    });
-    var boxW = width + 58;
-    var boxH = shown.length * 17 + 10;
-    if (x + boxW > plot.x1 - 10) x = plot.x1 - 10 - boxW;
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.strokeStyle = COLORS.minor;
-    ctx.beginPath();
-    ctx.rect(x, y, boxW, boxH);
-    ctx.fill();
-    ctx.stroke();
-    ctx.textAlign = 'left';
-    shown.forEach(function (gz, i) {
-      var ry = y + 13 + i * 17;
-      ctx.fillStyle = 'rgba(' + gz.rgb + ',0.25)';
-      ctx.strokeStyle = 'rgb(' + gz.rgb + ')';
-      ctx.beginPath();
-      ctx.rect(x + 8, ry - 5, 12, 10);
-      ctx.fill();
-      ctx.stroke();
-      ctx.font = '700 10px ' + font;
-      ctx.fillStyle = 'rgb(' + gz.rgb + ')';
-      ctx.fillText(gz.code, x + 26, ry);
-      ctx.font = '11px ' + font;
-      ctx.fillStyle = COLORS.ink;
-      ctx.fillText(gz.name, x + 56, ry);
+    G.zones.forEach(function (gz) {
+      if (!gz.show || !gz.labels) return;
+      gz.labels.forEach(function (l) {
+        var s = toScreen(l.t, l.w / 1000);
+        var ang = l.v ? Math.PI / 2 : 0;
+        if (l.sat) { // run the text along the saturation curve
+          var a = toScreen(l.t - 0.5, P.wSat(l.t - 0.5, state.pressure));
+          var b = toScreen(l.t + 0.5, P.wSat(l.t + 0.5, state.pressure));
+          ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+        }
+        ctx.save();
+        ctx.translate(s[0], s[1]);
+        ctx.rotate(ang);
+        haloText(l.text, 0, 0, '#3b3f45', true);
+        ctx.restore();
+      });
     });
   }
 

@@ -28,11 +28,19 @@ psychro/
 - Draggable indicator that shows the full set of moist-air properties
 - PMV comfort zones (ISO 7730 categories I/II/III) based on met, clo, air velocity and radiant offset
 - ASHRAE 55 adaptive comfort bands (80% / 90% acceptability)
-- Givoni bioclimatic chart overlay (limits after Givoni 1998) with a toggle per zone and strategy hours for loaded weather files
+- Givoni bioclimatic chart: outlined, labelled zones (comfort zone filled green) laid out like Marsh's Psychrometric Chart, with a toggle per zone and strategy hours for loaded weather files
 - Process lines: add, label, drag and delete points
 - Load EPW weather files or CSV files (dry-bulb plus RH columns) by file picker or drag and drop, with an hourly frequency overlay, monthly filtering and comfort-hour statistics
 - Configurable ranges, atmospheric pressure or elevation, and title/sub-title
 - Export to PNG, CSV or JSON
+
+## Givoni bioclimatic chart
+
+Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggled, and strategy hours are counted for loaded weather files.
+
+## Configuration
+
+- Zone vertices: `js/givoni.js`
 
 ## Embedding
 
