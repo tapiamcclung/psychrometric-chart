@@ -36,7 +36,7 @@
   ];
 
   var state = {
-    tMin: -10,
+    tMin: 0,
     tMax: 50,
     wMax: 30,
     pressure: 101325,
@@ -546,6 +546,25 @@
       setPressure(P.pressureFromElevation(station.elevation));
     }
 
+    // Start from the default ranges (0-50 °C, 30 g/kg) and widen only as far as the data needs.
+    var tLo = Infinity;
+    var tHi = -Infinity;
+    var wHi = 0;
+    rows.forEach(function (r) {
+      if (r.t < tLo) tLo = r.t;
+      if (r.t > tHi) tHi = r.t;
+      var wg = P.wFromRh(r.t, r.rh, state.pressure) * 1000;
+      if (wg > wHi) wHi = wg;
+    });
+    state.tMin = Math.min(0, clamp(Math.floor(tLo / 5) * 5, -40, 60));
+    state.tMax = Math.max(50, clamp(Math.ceil(tHi / 5) * 5, state.tMin + 10, 70));
+    state.wMax = Math.max(30, clamp(Math.ceil(wHi / 5) * 5, 5, 100));
+    $('tmin').value = String(state.tMin);
+    $('tmax').value = String(state.tMax);
+    $('wmax').value = String(state.wMax);
+    $('dbt').min = String(state.tMin);
+    $('dbt').max = String(state.tMax);
+
     renderStation();
     $('station').hidden = false;
     rebuild();
@@ -926,6 +945,33 @@
     });
   }
 
+  // Brief ring + dashed line from where you clicked to where the indicator snapped (shown when they differ).
+  var ghost = null;
+  function markClick(xy) {
+    var s = toScreen(state.indicator.t, state.indicator.w);
+    ghost = Math.hypot(s[0] - xy[0], s[1] - xy[1]) > 8 ? { x: xy[0], y: xy[1], t0: performance.now() } : null;
+  }
+  function drawGhost() {
+    if (!ghost) return;
+    var age = performance.now() - ghost.t0;
+    if (age > 700) { ghost = null; return; }
+    var s = toScreen(state.indicator.t, state.indicator.w);
+    ctx.save();
+    ctx.globalAlpha = 0.7 * (1 - age / 700);
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(ghost.x, ghost.y);
+    ctx.lineTo(s[0], s[1]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(ghost.x, ghost.y, 8 + age / 60, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    scheduleRender();
+  }
   function drawIndicator() {
     var ind = state.indicator;
     var s = toScreen(ind.t, ind.w);
@@ -985,9 +1031,8 @@
     ctx.restore();
 
     pathFrom(cache.saturation);
-    var givoniMode = state.comfort === 'givoni'; // thin, light 100% RH line so zone outlines on top of it stay visible
-    ctx.strokeStyle = givoniMode ? '#9aa3ab' : COLORS.saturation;
-    ctx.lineWidth = givoniMode ? 1 : 2;
+    ctx.strokeStyle = '#9aa3ab'; // thin, light 100% RH line so zone outlines on top of it stay visible
+    ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
 
@@ -997,6 +1042,7 @@
     drawGivoniLabels();
     drawProcess();
     drawIndicator();
+    drawGhost();
   }
 
   function scheduleRender() {
@@ -1288,9 +1334,18 @@
     return -1;
   }
 
+  // True only inside the plot rectangle and on or below the 100% RH line.
+  function inChart(xy) {
+    if (xy[0] < plot.x0 || xy[0] > plot.x1 || xy[1] < plot.y0 || xy[1] > plot.y1) return false;
+    var t = state.tMin + ((xy[0] - plot.x0) / (plot.x1 - plot.x0)) * (state.tMax - state.tMin);
+    var target = (plot.y1 - xy[1]) / (plot.y1 - plot.y0);
+    return target <= yFraction(t, wTopAt(t)) + 1e-9;
+  }
+
   canvas.addEventListener('pointerdown', function (e) {
     var xy = localPoint(e);
     var hit = hitPoint(xy);
+    if (hit < 0 && !inChart(xy)) return;
     canvas.setPointerCapture(e.pointerId);
     canvas.focus({ preventScroll: true });
     if (hit >= 0) {
@@ -1305,6 +1360,8 @@
       drag = { type: 'indicator' };
       var pos = fromScreen(xy[0], xy[1]);
       setIndicator(pos.t, pos.w);
+      markClick(xy);
+      document.dispatchEvent(new CustomEvent('psychro:chartclick'));
     }
     scheduleRender();
   });
@@ -1312,7 +1369,7 @@
   canvas.addEventListener('pointermove', function (e) {
     var xy = localPoint(e);
     if (!drag) {
-      canvas.style.cursor = hitPoint(xy) >= 0 ? 'grab' : 'crosshair';
+      canvas.style.cursor = hitPoint(xy) >= 0 ? 'grab' : inChart(xy) ? 'crosshair' : 'default';
       return;
     }
     var pos = fromScreen(xy[0], xy[1]);
@@ -1502,12 +1559,21 @@
     state.data = null;
     state.station = null;
     $('station').hidden = true;
+    state.tMin = 0;
+    state.tMax = 50;
+    state.wMax = 30;
+    $('tmin').value = '0';
+    $('tmax').value = '50';
+    $('wmax').value = '30';
+    $('dbt').min = '0';
+    $('dbt').max = '50';
+    setIndicator(state.indicator.t, state.indicator.w);
     rebuild();
   });
 
   ['tmin', 'tmax', 'wmax'].forEach(function (id) {
     $(id).addEventListener('change', function () {
-      var tMin = Math.round(num('tmin', -10));
+      var tMin = Math.round(num('tmin', 0));
       var tMax = Math.round(num('tmax', 50));
       if (tMax - tMin < 10) tMax = tMin + 10;
       state.tMin = clamp(tMin, -40, 60);

@@ -71,8 +71,8 @@
     render(e.detail.zones, e.detail.t, e.detail.w);
   });
 
-  // Clicking the chart in Givoni mode opens the sidebar.
-  document.getElementById('chart').addEventListener('pointerdown', function () {
+  // A click inside the chart (not the grey area or axes) in Givoni mode opens the sidebar.
+  document.addEventListener('psychro:chartclick', function () {
     if (model.value === 'givoni') setOpen(true);
   });
 
