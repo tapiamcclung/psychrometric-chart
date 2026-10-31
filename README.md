@@ -64,6 +64,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - At low atmospheric pressure (altitude) the saturation curve rises above the top of the chart; Givoni zone corners are capped at the top edge and the natural ventilation label sits just inside the saturation curve
 - On wide screens the app is locked to the window height and the sidebars scroll inside themselves; on narrow screens (860 px or less) the panels stack and the chart is pinned to the top while you scroll
 - Zone geometry was checked against screenshots of Marsh's chart at 101.3 and 77.2 kPa, not against its source code
+- Unticking "From weather data" keeps the value shown in the box as the manual setting; while it follows the weather data the box is greyed out
 
 ## Limitations
 

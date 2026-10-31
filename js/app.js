@@ -1596,7 +1596,10 @@
   });
 
   $('tout-auto').addEventListener('change', function () {
+    var wasAuto = state.tOutAuto;
     state.tOutAuto = $('tout-auto').checked;
+    // Turning "From weather data" off keeps the value shown in the box as the manual setting.
+    if (wasAuto && !state.tOutAuto) state.tOut = clamp(num('tout', state.tOut), -10, 45);
     $('tout').disabled = state.tOutAuto && !!state.data;
     buildComfort();
     buildData();
