@@ -625,3 +625,17 @@ canvas {
   .strategies.collapsed .strategies-toggle { flex-direction: row; padding: 12px 14px; }
   .stage { order: 2; }
 }
+
+/* Keep the page from growing: the sidebars scroll inside a fixed-height app instead of enlarging the body */
+@media (min-width: 861px) {
+  html, body { overflow: hidden; }
+  .app { height: 100vh; height: 100dvh; overflow: hidden; }
+  .sidebar, .strategies { min-height: 0; max-height: 100%; }
+  .stage { min-height: 0; }
+  .chart-wrap { min-height: 240px; }
+}
+
+/* Narrow screens stack the panels and the page may scroll, so pin the chart to the top */
+@media (max-width: 860px) {
+  .stage { position: sticky; top: 0; z-index: 5; height: 60vh; height: 60dvh; background: var(--bg); }
+}

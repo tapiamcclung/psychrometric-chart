@@ -51,6 +51,8 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Active solar, passive solar, internal gains and winter are open C shapes (internal gains and winter follow the RH 20% and 80% curves); zone outlines are drawn outside the plot clip so edges on the saturation curve and the axis stay visible
 - Winter, internal gains and comfort zones are separated by a small gap (0.5 °C)
 - The 100% RH line is thin and light grey so zone outlines on top of it stay visible
+- At low atmospheric pressure (altitude) the saturation curve rises above the top of the chart; Givoni zone corners are capped at the top edge and the natural ventilation label sits just inside the saturation curve
+- On wide screens the app is locked to the window height and the sidebars scroll inside themselves; on narrow screens (860 px or less) the panels stack and the chart is pinned to the top while you scroll
 
 ## Embedding
 

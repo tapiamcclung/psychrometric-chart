@@ -368,7 +368,9 @@
       G.zones.forEach(function (gz) {
         if (!gz.show) return;
         var poly = G.polygon(gz, state.pressure);
-        if (poly) zones.push({ poly: poly, zone: gz, label: gz.name });
+        // Keep corners inside the chart: at low pressure (altitude) the saturation curve rises above the top edge.
+        var wCap = state.wMax / 1000;
+        if (poly) zones.push({ poly: poly.map(function (v) { return [v[0], Math.min(v[1], wCap)]; }), zone: gz, label: gz.name });
       });
       note = 'Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. Boundaries are editable in js/givoni.js.';
     }
@@ -806,7 +808,7 @@
         ctx.setLineDash([2, 4]);
         ctx.lineWidth = 1.6;
         gz.extra(state.pressure).forEach(function (seg) {
-          pathFrom(densify(seg, 0.25, 0.0004));
+          pathFrom(densify(seg.map(function (v) { return [v[0], Math.min(v[1], state.wMax / 1000)]; }), 0.25, 0.0004));
           ctx.stroke();
         });
       }
@@ -821,7 +823,12 @@
     G.zones.forEach(function (gz) {
       if (!gz.show || !gz.labels) return;
       gz.labels.forEach(function (l) {
-        var s = toScreen(l.t, l.w / 1000);
+        var wl = l.w / 1000;
+        if (l.sat) { // sit just inside the saturation curve at any pressure
+          var ws = Math.min(P.wSat(l.t, state.pressure), state.wMax / 1000);
+          wl = ws - 0.15 * (ws - P.wFromRh(l.t, 0.8, state.pressure));
+        }
+        var s = toScreen(l.t, wl);
         var ang = l.v ? Math.PI / 2 : 0;
         if (l.sat) { // run the text along the saturation curve
           var a = toScreen(l.t - 0.5, P.wSat(l.t - 0.5, state.pressure));
