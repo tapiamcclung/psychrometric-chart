@@ -325,6 +325,7 @@
   }
 
   function buildComfort() {
+    syncTout();
     var zones = [];
     var note = '';
     if (state.comfort === 'pmv') {
@@ -397,6 +398,11 @@
     return false;
   }
 
+  // When "From weather data" is on, show the mean temperature actually used in the text box.
+  function syncTout() {
+    if (state.tOutAuto && state.data) $('tout').value = effectiveTOut().toFixed(1);
+  }
+
   function effectiveTOut() {
     if (state.tOutAuto && state.data) {
       var rows = filteredData();
@@ -422,6 +428,7 @@
   }
 
   function buildData() {
+    syncTout();
     if (state.comfort === 'givoni') G.setMeanOutdoor(effectiveTOut());
     cache.bins = null;
     cache.stats = null;
@@ -814,6 +821,40 @@
     });
   }
 
+  // Legend for the data cells: the same colour ramp as drawData(), from 1 hour to the busiest cell.
+  function drawDataLegend() {
+    if (!cache.bins || !state.showData || !cache.binMax) return;
+    var font = getComputedStyle(document.body).fontFamily;
+    var max = cache.binMax;
+    var n = 6;
+    var sw = 22;
+    var w = n * sw;
+    var x0 = plot.x1 - w - 16;
+    var y0 = plot.y1 - 30;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillRect(x0 - 8, y0 - 22, w + 16, 54);
+    ctx.fillStyle = '#3b3f45';
+    ctx.font = '600 10px ' + font;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Hours per cell', x0, y0 - 8);
+    for (var i = 0; i < n; i++) {
+      var v = 1 + ((max - 1) * i) / (n - 1);
+      ctx.fillStyle = 'rgba(' + COLORS.dataRgb + ',' + (0.12 + Math.sqrt(v / max) * 0.78).toFixed(3) + ')';
+      ctx.fillRect(x0 + i * sw, y0, sw, 10);
+    }
+    ctx.strokeStyle = 'rgba(59,63,69,0.5)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, 9);
+    ctx.fillStyle = '#3b3f45';
+    ctx.font = '10px ' + font;
+    ctx.fillText('1', x0, y0 + 22);
+    ctx.textAlign = 'right';
+    ctx.fillText(String(max), x0 + w, y0 + 22);
+    ctx.restore();
+  }
+
   // Zone outlines are drawn outside the plot clip so edges lying on the saturation curve or the W = 0 axis stay fully visible.
   function drawGivoniOutlines() {
     ctx.save();
@@ -1064,6 +1105,7 @@
     ctx.restore();
 
     drawGivoniOutlines();
+    drawDataLegend();
     drawAxes();
     drawFamilyLabels();
     drawGivoniLabels();
@@ -1143,6 +1185,12 @@
       html += '<div class="comfort-line"><dl><dt>Strategy</dt><dd class="' + (comfy ? 'ok' : '') + '">' +
         strategies.map(function (z) { return z.name; }).join(', ') + '</dd></dl></div>';
       document.dispatchEvent(new CustomEvent('psychro:zones', { detail: { zones: strategies, t: ind.t, w: ind.w } }));
+    }
+    if (state.data && cache.bins && state.showData) { // data cell under the indicator (cells are 1 °C x 1 g/kg)
+      var cx = Math.floor(ind.t);
+      var cy = Math.floor(ind.w * 1000);
+      html += '<div class="comfort-line"><dl><dt>Hours in this cell</dt><dd>' + (cache.bins[cx + ':' + cy] || 0) +
+        '</dd><dt>Cell range</dt><dd>' + cx + '–' + (cx + 1) + ' °C, ' + cy + '–' + (cy + 1) + ' g/kg</dd></dl></div>';
     }
     $('readout').innerHTML = html;
 
