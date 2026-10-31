@@ -44,9 +44,8 @@
       build: function (p) { return arc(rh(0.2, p), 17.5, 12.5).concat(arc(rh(0.8, p), 12.5, 17.5)); },
       labels: [{ text: 'INTERNAL GAINS', t: 13.1, w: 4.5, v: true }] },
     { id: 'win', code: 'WIN', name: 'Winter', rgb: '120,113,108', classify: false, close: 'none', dash: [2, 4], width: 1.6,
-      build: function (p) { return arc(rh(0.2, p), 20, 18).concat(arc(rh(0.8, p), 18, 20)); },
-      extra: function (p) { return [arc(rh(0.2, p), 17.5, 18), arc(rh(0.8, p), 17.5, 18)]; },
-      labels: [{ text: 'WINTER', t: 18.4, w: 6.5, v: true }] },
+      build: function (p) { return arc(rh(0.2, p), 19.5, 18).concat(arc(rh(0.8, p), 18, 19.5)); },   // gaps of 0.5 °C to internal gains and comfort
+      labels: [{ text: 'WINTER', t: 18.7, w: 6.5, v: true }] },
     { id: 'h', code: 'H', name: 'Humidification', rgb: '180,120,20', classify: false, close: 'none',
       build: function () { return [pt(19, 0), pt(23.5, 0)]; },
       labels: [{ text: 'HUMIDIFICATION', t: 15, w: 0.6 }] },

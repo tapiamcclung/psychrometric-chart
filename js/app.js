@@ -985,8 +985,9 @@
     ctx.restore();
 
     pathFrom(cache.saturation);
-    ctx.strokeStyle = COLORS.saturation;
-    ctx.lineWidth = 2;
+    var givoniMode = state.comfort === 'givoni'; // thin, light 100% RH line so zone outlines on top of it stay visible
+    ctx.strokeStyle = givoniMode ? '#9aa3ab' : COLORS.saturation;
+    ctx.lineWidth = givoniMode ? 1 : 2;
     ctx.stroke();
     ctx.restore();
 
