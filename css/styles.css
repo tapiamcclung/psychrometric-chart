@@ -706,3 +706,22 @@ canvas {
   opacity: 0.65;
   cursor: not-allowed;
 }
+
+/* Count of applicable strategies on the (closed) Strategies tab */
+.strategies-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.strategies-badge[hidden] {
+  display: none;
+}

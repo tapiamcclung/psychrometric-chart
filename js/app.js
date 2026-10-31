@@ -808,6 +808,12 @@
           ctx.fillStyle = 'rgba(' + gz.fill + ')';
           ctx.fill();
         }
+        if (hoverSet[gz.id] && state.comfort === 'givoni') { // highlight the zone(s) under the pointer
+          pathFrom(z.poly);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(' + gz.rgb + ',0.28)';
+          ctx.fill();
+        }
         return;
       }
       var rgb = z.zone ? z.zone.rgb : COLORS.accentRgb;
@@ -864,7 +870,7 @@
       var gz = z.zone;
       if (!gz) return;
       ctx.setLineDash(gz.dash || []);
-      ctx.lineWidth = gz.width || 2.2;
+      ctx.lineWidth = hoverSet[gz.id] ? 3.6 : gz.width || 2.2;
       pathFrom(z.poly);
       if (gz.close === undefined) ctx.closePath();
       ctx.stroke();
@@ -910,7 +916,10 @@
         ctx.save();
         ctx.translate(s[0], s[1]);
         ctx.rotate(ang);
-        haloText(l0.text, 0, 0, '#3b3f45', true);
+        var lines = (state.morph > 0.5 && l0.textRh ? l0.textRh : l0.text).split('\n'); // shorter text in the RH chart
+        lines.forEach(function (ln, i) {
+          haloText(ln, 0, (i - (lines.length - 1) / 2) * 12, '#3b3f45', true);
+        });
         ctx.restore();
       });
     });
@@ -1410,6 +1419,25 @@
     return -1;
   }
 
+  // Givoni zones under the pointer (highlighted while hovering).
+  var hoverSet = {};
+  var hoverKey = '';
+  function setHover(pos) {
+    var ids = [];
+    if (pos && state.comfort === 'givoni') {
+      G.setMeanOutdoor(effectiveTOut());
+      G.zones.forEach(function (z) {
+        if (z.show && G.contains(z, pos.t, pos.w, state.pressure)) ids.push(z.id);
+      });
+    }
+    var key = ids.join(',');
+    if (key === hoverKey) return;
+    hoverKey = key;
+    hoverSet = {};
+    ids.forEach(function (id) { hoverSet[id] = true; });
+    scheduleRender();
+  }
+
   // True only inside the plot rectangle and on or below the 100% RH line.
   function inChart(xy) {
     if (xy[0] < plot.x0 || xy[0] > plot.x1 || xy[1] < plot.y0 || xy[1] > plot.y1) return false;
@@ -1445,7 +1473,9 @@
   canvas.addEventListener('pointermove', function (e) {
     var xy = localPoint(e);
     if (!drag) {
-      canvas.style.cursor = hitPoint(xy) >= 0 ? 'grab' : inChart(xy) ? 'crosshair' : 'default';
+      var over = inChart(xy);
+      canvas.style.cursor = hitPoint(xy) >= 0 ? 'grab' : over ? 'crosshair' : 'default';
+      setHover(over ? fromScreen(xy[0], xy[1]) : null);
       return;
     }
     var pos = fromScreen(xy[0], xy[1]);
@@ -1465,6 +1495,7 @@
     drag = null;
   }
 
+  canvas.addEventListener('pointerleave', function () { if (!drag) setHover(null); });
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 

@@ -34,12 +34,13 @@ psychro/
 - Process lines: add, label, drag and delete points
 - Load EPW weather files or CSV files (dry-bulb plus RH columns) by file picker or drag and drop, with an hourly frequency overlay, monthly filtering and comfort-hour statistics
 - Configurable ranges, atmospheric pressure or elevation, and title/sub-title. Defaults are 0–50 °C and 0–35 g/kg (right axis labelled every 5 g/kg); loading a weather file widens the ranges only as far as that file needs, and clearing the data restores the defaults
-- Collapsible Strategies sidebar (right): lists the Givoni zone(s) at the indicator with placeholder strategy text; opens when you click the chart in Givoni mode
-- Clicks in the grey area above the 100% RH line, on the axes or in the margins are ignored; only clicks inside the chart move the indicator or open the Strategies sidebar
+- Collapsible Strategies sidebar (right): lists the Givoni zone(s) at the indicator with placeholder strategy text. It does not open by itself; its tab shows how many strategies apply to the selected point
+- Clicks in the grey area above the 100% RH line, on the axes or in the margins are ignored; only clicks inside the chart move the indicator
 - RH line labels: lines that wrap to the top axis are labelled above the chart, lines that end at the right edge are labelled inside the chart; in the RH chart all RH labels are on the right, outside the chart, and the left RH axis ticks are removed (the axis title moves to the right)
 - Collapsible Controls sidebar (left), mirrored by the Strategies sidebar (right)
 - Weather-data overlay: hourly points are binned into cells (1 °C × 1 g/kg); clicking shows the hours in that cell in the readout, and a legend in the bottom-right corner shows the colour ramp from 1 hour to the busiest cell
 - "From weather data" for the mean outdoor temperature shows the value being used in the text box
+- Hovering the chart in Givoni mode highlights every zone under the pointer
 - Export to PNG, CSV or JSON
 
 ## Givoni bioclimatic chart
@@ -65,6 +66,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - On wide screens the app is locked to the window height and the sidebars scroll inside themselves; on narrow screens (860 px or less) the panels stack and the chart is pinned to the top while you scroll
 - Zone geometry was checked against screenshots of Marsh's chart at 101.3 and 77.2 kPa, not against its source code
 - Unticking "From weather data" keeps the value shown in the box as the manual setting; while it follows the weather data the box is greyed out
+- The mass cooling and night ventilation label is split in two lines, and shortened to "MASS COOL & / NIGHT VENT." in the RH chart
 
 ## Limitations
 

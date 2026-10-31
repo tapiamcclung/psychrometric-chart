@@ -11,7 +11,8 @@
  * build(p) returns [dry-bulb °C, humidity ratio kg/kg] vertices (call setMeanOutdoor first).
  *   close: undefined = closed solid outline, 'none' = leave the last edge open
  *   dash: dash pattern    width: line width    fill: 'r,g,b,a'
- *   labels: {t, w in g/kg, v: vertical, sat: follow the saturation curve}, or {dyn: function(p)} for computed labels
+ *   labels: {t, w in g/kg, v: vertical, sat: follow the saturation curve}, or {dyn: function(p)} for computed labels;
+ *           use \n for line breaks and textRh for the shorter text shown in the RH chart
  *   classify:false = not counted when classifying a point (display only)
  */
 (function (global) {
@@ -63,7 +64,7 @@
         var wb = wLow(p);
         return [[T(37), wb], [T(44), wb], [T(44), Math.min(CAP, pct(0.2, p)(T(44)))], [T(40), CAP], [T(33), CAP], [T(37), Math.min(CAP, pct(0.3, p)(T(37)))]];
       },
-      labels: [{ text: 'MASS COOLING & NIGHT VENTILATION', t: 42.2, w: 8, v: true }] },
+      labels: [{ text: 'MASS COOLING &\nNIGHT VENTILATION', textRh: 'MASS COOL &\nNIGHT VENT.', t: 42.2, w: 8, v: true }] },
     { id: 'm', code: 'M', name: 'Mass cooling', rgb: '192,38,211',
       build: function (p) {
         var wb = wLow(p);

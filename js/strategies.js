@@ -28,6 +28,7 @@
   var sub = document.getElementById('strategies-sub');
   var model = document.getElementById('comfort-model');
   var chev = toggle.querySelector('.chev');
+  var badge = document.getElementById('strategies-count');
 
   function setOpen(open) {
     panel.classList.toggle('collapsed', !open);
@@ -46,6 +47,9 @@
 
   function render(zones, t, w) {
     sub.textContent = t.toFixed(1) + ' °C, ' + (w * 1000).toFixed(1) + ' g/kg';
+    badge.textContent = String(zones.length);   // the panel stays closed; the tab shows how many strategies apply
+    badge.hidden = false;
+    toggle.title = zones.length + (zones.length === 1 ? ' strategy' : ' strategies') + ' for the selected point';
     list.textContent = '';
     zones.forEach(function (z) {
       var card = document.createElement('section');
@@ -71,13 +75,9 @@
     render(e.detail.zones, e.detail.t, e.detail.w);
   });
 
-  // A click inside the chart (not the grey area or axes) in Givoni mode opens the sidebar.
-  document.addEventListener('psychro:chartclick', function () {
-    if (model.value === 'givoni') setOpen(true);
-  });
-
   model.addEventListener('change', function () {
     sub.textContent = '';
+    if (model.value !== 'givoni') badge.hidden = true;
     if (model.value !== 'givoni') message('Choose “Givoni bioclimatic chart” under Comfort overlay, then click the chart to see strategies for that point.');
     else if (!list.querySelector('.strategy')) message('Click the chart to see strategies for that point.');
   });
