@@ -365,6 +365,7 @@
         'Neutral operative temperature ' + a.neutral.toFixed(1) + ' °C for a mean outdoor temperature of ' + tOut.toFixed(1) + ' °C.' +
         (a.applicable ? '' : ' Outside the 10–33.5 °C range of applicability, limits are clamped.');
     } else if (state.comfort === 'givoni') {
+      G.setMeanOutdoor(effectiveTOut());
       G.zones.forEach(function (gz) {
         if (!gz.show) return;
         var poly = G.polygon(gz, state.pressure);
@@ -372,7 +373,7 @@
         var wCap = state.wMax / 1000;
         if (poly) zones.push({ poly: poly.map(function (v) { return [v[0], Math.min(v[1], wCap)]; }), zone: gz, label: gz.name });
       });
-      note = 'Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. Boundaries are editable in js/givoni.js.';
+      note = 'Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. All zones shift with the mean outdoor temperature (' + effectiveTOut().toFixed(1) + ' °C here); limits are editable in js/givoni.js.';
     }
     cache.comfort = zones.map(function (z) {
       if (z.zone) z.tail = densify([z.poly[z.poly.length - 1], z.poly[0]], 0.25, 0.0004);
@@ -421,6 +422,7 @@
   }
 
   function buildData() {
+    if (state.comfort === 'givoni') G.setMeanOutdoor(effectiveTOut());
     cache.bins = null;
     cache.stats = null;
     if (!state.data) return;
@@ -850,22 +852,24 @@
     G.zones.forEach(function (gz) {
       if (!gz.show || !gz.labels) return;
       gz.labels.forEach(function (l) {
-        var wl = l.w / 1000;
+        var l0 = l.dyn ? l.dyn(state.pressure) : l; // computed labels (mean outdoor temperature) are placed absolutely
+        var lt = l0.abs ? l0.t : l0.t + G.shift();   // other labels move with the zones
+        var wl = l0.w / 1000;
         if (l.sat) { // sit just inside the saturation curve at any pressure
-          var ws = Math.min(P.wSat(l.t, state.pressure), state.wMax / 1000);
-          wl = ws - 0.15 * (ws - P.wFromRh(l.t, 0.8, state.pressure));
+          var ws = Math.min(P.wSat(lt, state.pressure), state.wMax / 1000);
+          wl = ws - 0.15 * (ws - P.wFromRh(lt, 0.8, state.pressure));
         }
-        var s = toScreen(l.t, wl);
-        var ang = l.v ? Math.PI / 2 : 0;
+        var s = toScreen(lt, wl);
+        var ang = l0.rot !== undefined ? l0.rot : l0.v ? Math.PI / 2 : 0;
         if (l.sat) { // run the text along the saturation curve
-          var a = toScreen(l.t - 0.5, P.wSat(l.t - 0.5, state.pressure));
-          var b = toScreen(l.t + 0.5, P.wSat(l.t + 0.5, state.pressure));
+          var a = toScreen(lt - 0.5, P.wSat(lt - 0.5, state.pressure));
+          var b = toScreen(lt + 0.5, P.wSat(lt + 0.5, state.pressure));
           ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
         }
         ctx.save();
         ctx.translate(s[0], s[1]);
         ctx.rotate(ang);
-        haloText(l.text, 0, 0, '#3b3f45', true);
+        haloText(l0.text, 0, 0, '#3b3f45', true);
         ctx.restore();
       });
     });
@@ -1133,6 +1137,7 @@
       html += '<div class="comfort-line"><dl><dt>Neutral temp.</dt><dd>' + fmt(a.neutral, 1) + ' °C</dd><dt>Acceptability</dt><dd class="' +
         (in80 ? 'ok' : 'bad') + '">' + (in90 ? '90%' : in80 ? '80%' : 'Outside') + '</dd></dl></div>';
     } else if (state.comfort === 'givoni') {
+      G.setMeanOutdoor(effectiveTOut());
       var strategies = G.classify(ind.t, ind.w, state.pressure);
       var comfy = strategies.some(function (z) { return z.id === 'c'; });
       html += '<div class="comfort-line"><dl><dt>Strategy</dt><dd class="' + (comfy ? 'ok' : '') + '">' +
@@ -1483,7 +1488,7 @@
 
   function syncComfortControls() {
     $('pmv-controls').hidden = state.comfort !== 'pmv';
-    $('adaptive-controls').hidden = state.comfort !== 'adaptive';
+    $('adaptive-controls').hidden = state.comfort !== 'adaptive' && state.comfort !== 'givoni'; // Givoni zones also use the mean outdoor temperature
     $('givoni-controls').hidden = state.comfort !== 'givoni';
   }
 

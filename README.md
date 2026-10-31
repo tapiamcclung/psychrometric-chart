@@ -30,7 +30,7 @@ psychro/
 - Draggable indicator that shows the full set of moist-air properties
 - PMV comfort zones (ISO 7730 categories I/II/III) based on met, clo, air velocity and radiant offset
 - ASHRAE 55 adaptive comfort bands (80% / 90% acceptability)
-- Givoni bioclimatic chart: outlined, labelled zones (comfort zone filled green) laid out like Marsh's Psychrometric Chart, with a toggle per zone and strategy hours for loaded weather files
+- Givoni bioclimatic chart: outlined, labelled zones (comfort zone filled green) laid out like Marsh's Psychrometric Chart, with a toggle per zone and strategy hours for loaded weather files. Zones shift with the mean outdoor temperature (the control is shared with the adaptive comfort overlay) and a dotted line marks that temperature
 - Process lines: add, label, drag and delete points
 - Load EPW weather files or CSV files (dry-bulb plus RH columns) by file picker or drag and drop, with an hourly frequency overlay, monthly filtering and comfort-hour statistics
 - Configurable ranges, atmospheric pressure or elevation, and title/sub-title. Defaults are 0–50 °C and 0–35 g/kg (right axis labelled every 5 g/kg); loading a weather file widens the ranges only as far as that file needs, and clearing the data restores the defaults
@@ -45,11 +45,14 @@ psychro/
 Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggled, and strategy hours are counted for loaded weather files.
 
 - Humidity limits are percentages of the saturation humidity ratio (W/Wsat, which differs slightly from true RH), a 16 g/kg cap, and a constant-enthalpy line (evaporative cooling); everything is recomputed at the current pressure
+- All zone temperatures shift by 0.31 °C per °C of mean outdoor temperature relative to 19 °C (the ASHRAE 55 adaptive slope), so at 19 °C the comfort zone is 20–27 °C. This was fitted to screenshots at 10, 19 and 28 °C; other values are extrapolated
+- Edges that lie on a relative humidity line (20%, 80%, 100%) follow the true RH curve, including the natural ventilation bottom edge
 
 ## Configuration
 
 - Zone vertices: `js/givoni.js`
 - Strategy text: `TEXT` table at the top of `js/strategies.js` (currently placeholders)
+- Mean outdoor temperature slope: `setMeanOutdoor()` in `js/givoni.js` (0.31 °C per °C)
 
 ## Notes
 
@@ -63,6 +66,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 ## Limitations
 
 - Zone limits come from screenshots of a reference chart and Givoni (1998), not from its source code; compare against your own reference before relying on them
+- "From weather data" uses the mean of the loaded (month-filtered) data, not a 30-day running mean
 - Strategy text in the Strategies sidebar is placeholder text
 
 ## Embedding
