@@ -6,7 +6,8 @@
  * Each zone: build(p) returns [dry-bulb °C, humidity ratio kg/kg] vertices. Helper pt(t, g/kg) makes a vertex,
  * arc(rh(r,p), t0, t1) follows a relative-humidity curve (rh(1,p) = saturation).
  *   close: undefined = closed solid outline, 'none' = leave the last edge open, 'dotted' = dotted last edge
- *   dash: dash pattern for the whole outline    fill: 'r,g,b,a'    extra: dotted connector lines [t, g/kg]
+ *   dash: dash pattern for the whole outline    width: line width    fill: 'r,g,b,a'
+ *   extra: function(p) returning extra dotted polylines ([t, kg/kg] vertices)
  *   labels: text drawn on the chart ({t, w in g/kg, v: vertical, sat: follow the saturation curve})
  *   classify:false = not counted when classifying a point (display only)
  */
@@ -35,13 +36,17 @@
     { id: 'as', code: 'ASH', name: 'Active solar heating', rgb: '234,88,12', close: 'none',
       build: function (p) { return [pt(7, 0), pt(4, 0)].concat(arc(rh(1, p), 4, 7)); },
       labels: [{ text: 'ACTIVE SOLAR', t: 4.7, w: 2.5, v: true }] },
-    { id: 'ps', code: 'PSH', name: 'Passive solar heating', rgb: '202,138,4', close: 'dotted',
+    { id: 'ps', code: 'PSH', name: 'Passive solar heating', rgb: '202,138,4', close: 'none',
       build: function (p) { return [pt(19, 0), pt(8, 0)].concat(arc(rh(1, p), 8, 19)); },
+      extra: function (p) { return [[[19, 0], [19, rh(1, p)(19)]]]; },
       labels: [{ text: 'PASSIVE SOLAR HEATING', t: 8.7, w: 3.3, v: true }] },
-    { id: 'ig', code: 'IG', name: 'Internal gains', rgb: '161,98,7', close: 'dotted',
-      build: function () { return [pt(17.5, 2.5), pt(12.5, 1.8), pt(12.5, 7.2), pt(17.5, 10)]; },
-      extra: [[[17.5, 10], [20, 11.8]], [[17.5, 2.5], [20, 2.94]]],
-      labels: [{ text: 'INTERNAL GAINS', t: 13.1, w: 4.5, v: true }, { text: 'WINTER', t: 18.4, w: 6.5, v: true }] },
+    { id: 'ig', code: 'IG', name: 'Internal gains', rgb: '161,98,7', close: 'none',
+      build: function (p) { return arc(rh(0.2, p), 17.5, 12.5).concat(arc(rh(0.8, p), 12.5, 17.5)); },
+      labels: [{ text: 'INTERNAL GAINS', t: 13.1, w: 4.5, v: true }] },
+    { id: 'win', code: 'WIN', name: 'Winter', rgb: '120,113,108', classify: false, close: 'none', dash: [2, 4], width: 1.6,
+      build: function (p) { return arc(rh(0.2, p), 20, 18).concat(arc(rh(0.8, p), 18, 20)); },
+      extra: function (p) { return [arc(rh(0.2, p), 17.5, 18), arc(rh(0.8, p), 17.5, 18)]; },
+      labels: [{ text: 'WINTER', t: 18.4, w: 6.5, v: true }] },
     { id: 'h', code: 'H', name: 'Humidification', rgb: '180,120,20', classify: false, close: 'none',
       build: function () { return [pt(19, 0), pt(23.5, 0)]; },
       labels: [{ text: 'HUMIDIFICATION', t: 15, w: 0.6 }] },

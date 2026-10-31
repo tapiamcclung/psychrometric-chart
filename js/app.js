@@ -744,31 +744,13 @@
   function drawComfort() {
     cache.comfort.forEach(function (z) {
       var gz = z.zone;
-      if (gz) { // Givoni zone: dark outline, optional fill, dotted/dashed variants
+      if (gz) { // Givoni zone: fill only here (inside the clip); outlines are drawn by drawGivoniOutlines
         if (gz.fill) {
           pathFrom(z.poly);
           ctx.closePath();
           ctx.fillStyle = 'rgba(' + gz.fill + ')';
           ctx.fill();
         }
-        ctx.strokeStyle = '#3b3f45';
-        ctx.lineWidth = 2.2;
-        ctx.lineJoin = 'round';
-        ctx.setLineDash(gz.dash || []);
-        pathFrom(z.poly);
-        if (gz.close === undefined) ctx.closePath();
-        ctx.stroke();
-        ctx.setLineDash([2, 4]);
-        ctx.lineWidth = 1.6;
-        if (gz.close === 'dotted') {
-          pathFrom(z.tail);
-          ctx.stroke();
-        }
-        (gz.extra || []).forEach(function (seg) {
-          pathFrom(densify(seg.map(function (v) { return [v[0], v[1] / 1000]; }), 0.25, 0.0004));
-          ctx.stroke();
-        });
-        ctx.setLineDash([]);
         return;
       }
       var rgb = z.zone ? z.zone.rgb : COLORS.accentRgb;
@@ -780,6 +762,37 @@
       ctx.lineWidth = z.zone ? 1.4 : 1;
       ctx.stroke();
     });
+  }
+
+  // Zone outlines are drawn outside the plot clip so edges lying on the saturation curve or the W = 0 axis stay fully visible.
+  function drawGivoniOutlines() {
+    ctx.save();
+    ctx.strokeStyle = '#3b3f45';
+    ctx.lineJoin = 'round';
+    cache.comfort.forEach(function (z) {
+      var gz = z.zone;
+      if (!gz) return;
+      ctx.setLineDash(gz.dash || []);
+      ctx.lineWidth = gz.width || 2.2;
+      pathFrom(z.poly);
+      if (gz.close === undefined) ctx.closePath();
+      ctx.stroke();
+      if (gz.close === 'dotted') {
+        ctx.setLineDash([2, 4]);
+        ctx.lineWidth = 1.6;
+        pathFrom(z.tail);
+        ctx.stroke();
+      }
+      if (gz.extra) {
+        ctx.setLineDash([2, 4]);
+        ctx.lineWidth = 1.6;
+        gz.extra(state.pressure).forEach(function (seg) {
+          pathFrom(densify(seg, 0.25, 0.0004));
+          ctx.stroke();
+        });
+      }
+    });
+    ctx.restore();
   }
 
   function drawGivoniLabels() {
@@ -977,6 +990,7 @@
     ctx.stroke();
     ctx.restore();
 
+    drawGivoniOutlines();
     drawAxes();
     drawFamilyLabels();
     drawGivoniLabels();

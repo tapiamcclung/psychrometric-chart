@@ -45,6 +45,10 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Zone vertices: `js/givoni.js`
 - Strategy text: `TEXT` table at the top of `js/strategies.js` (currently placeholders)
 
+## Notes
+
+- Active solar, passive solar, internal gains and winter are open C shapes (internal gains and winter follow the RH 20% and 80% curves); zone outlines are drawn outside the plot clip so edges on the saturation curve and the axis stay visible
+
 ## Embedding
 
 ```html
