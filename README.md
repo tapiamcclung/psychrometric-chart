@@ -17,6 +17,7 @@ psychro/
     ├── comfort.js         PMV/PPD (ISO 7730) and adaptive comfort (ASHRAE 55)
     ├── givoni.js          Givoni bioclimatic zone definitions
     ├── psychrometrics.js  moist-air property equations (uses PsychroLib when loaded)
+    ├── strategies.js      right-hand Strategies sidebar
     └── vendor/
         └── psychrolib.js  PsychroLib (vendored)
 ```
@@ -32,6 +33,7 @@ psychro/
 - Process lines: add, label, drag and delete points
 - Load EPW weather files or CSV files (dry-bulb plus RH columns) by file picker or drag and drop, with an hourly frequency overlay, monthly filtering and comfort-hour statistics
 - Configurable ranges, atmospheric pressure or elevation, and title/sub-title
+- Collapsible Strategies sidebar (right): lists the Givoni zone(s) at the indicator with placeholder strategy text; opens when you click the chart in Givoni mode
 - Export to PNG, CSV or JSON
 
 ## Givoni bioclimatic chart
@@ -41,6 +43,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 ## Configuration
 
 - Zone vertices: `js/givoni.js`
+- Strategy text: `TEXT` table at the top of `js/strategies.js` (currently placeholders)
 
 ## Embedding
 

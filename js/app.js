@@ -1053,6 +1053,7 @@
       var comfy = strategies.some(function (z) { return z.id === 'c'; });
       html += '<div class="comfort-line"><dl><dt>Strategy</dt><dd class="' + (comfy ? 'ok' : '') + '">' +
         strategies.map(function (z) { return z.name; }).join(', ') + '</dd></dl></div>';
+      document.dispatchEvent(new CustomEvent('psychro:zones', { detail: { zones: strategies, t: ind.t, w: ind.w } }));
     }
     $('readout').innerHTML = html;
 
