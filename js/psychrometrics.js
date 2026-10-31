@@ -1,109 +1,96 @@
 /*
- * Moist-air psychrometric relations (SI units).
- * Based on the ASHRAE Handbook of Fundamentals equations.
- * Temperatures in °C, pressures in Pa, humidity ratio in kg/kg dry air.
+ * Thin adapter around PsychroLib (https://github.com/psychrometrics/psychrolib, MIT).
+ * Exposes the small API the chart needs, in SI units:
+ * temperatures in °C, pressures in Pa, humidity ratio in kg/kg dry air, enthalpy in kJ/kg.
+ *
+ * PsychroLib clamps humidity ratios to a minimum of 1e-7 and throws on out-of-range input.
+ * The chart traces iso-lines by detecting where they leave the valid region, so clamped
+ * minimum values and thrown errors are reported here as NaN / negative instead.
  */
 (function (global) {
   'use strict';
 
-  var MW_RATIO = 0.621945;
+  var lib = global.psychrolib;
+  if (!lib) throw new Error('psychrolib.js must be loaded before psychrometrics.js');
+  lib.SetUnitSystem(lib.SI);
 
-  function saturationPressure(t) {
-    var T = t + 273.15;
-    if (t < 0) {
-      return Math.exp(
-        -5.6745359e3 / T +
-          6.3925247 -
-          9.677843e-3 * T +
-          6.2215701e-7 * T * T +
-          2.0747825e-9 * T * T * T -
-          9.484024e-13 * T * T * T * T +
-          4.1635019 * Math.log(T)
-      );
-    }
-    return Math.exp(
-      -5.8002206e3 / T +
-        1.3914993 -
-        4.8640239e-2 * T +
-        4.1764768e-5 * T * T -
-        1.4452093e-8 * T * T * T +
-        6.5459673 * Math.log(T)
-    );
-  }
+  var LIB_MIN_W = 1e-7;
 
-  function wFromPw(pw, p) {
-    return (MW_RATIO * pw) / (p - pw);
-  }
-
-  function pwFromW(w, p) {
-    return (p * w) / (MW_RATIO + w);
-  }
-
-  function wSat(t, p) {
-    return wFromPw(saturationPressure(t), p);
-  }
-
-  function wFromRh(t, rh, p) {
-    return wFromPw(rh * saturationPressure(t), p);
-  }
-
-  function rhFromW(t, w, p) {
-    return pwFromW(w, p) / saturationPressure(t);
-  }
-
-  function bisect(fn, target, lo, hi, iterations) {
-    var a = lo;
-    var b = hi;
-    var fa = fn(a) - target;
-    for (var i = 0; i < (iterations || 50); i++) {
-      var m = (a + b) / 2;
-      var fm = fn(m) - target;
-      if (fa * fm <= 0) {
-        b = m;
-      } else {
-        a = m;
-        fa = fm;
+  function safe(fn) {
+    return function () {
+      try {
+        return fn.apply(null, arguments);
+      } catch (err) {
+        return NaN;
       }
-    }
-    return (a + b) / 2;
+    };
   }
 
-  function dewPoint(w, p) {
-    var pw = pwFromW(w, p);
-    if (pw <= 0) return -Infinity;
-    return bisect(saturationPressure, pw, -100, 120, 50);
+  function unclampW(w) {
+    return w <= LIB_MIN_W * 1.0001 ? -1 : w;
   }
 
-  function wFromWetBulb(t, twb, p) {
-    var wsStar = wSat(twb, p);
-    if (twb >= 0) {
-      return ((2501 - 2.326 * twb) * wsStar - 1.006 * (t - twb)) / (2501 + 1.86 * t - 4.186 * twb);
-    }
-    return ((2830 - 0.24 * twb) * wsStar - 1.006 * (t - twb)) / (2830 + 1.86 * t - 2.1 * twb);
-  }
+  var saturationPressure = safe(function (t) {
+    return lib.GetSatVapPres(t);
+  });
 
-  function wetBulb(t, w, p) {
-    return bisect(function (twb) { return wFromWetBulb(t, twb, p); }, w, -100, t, 50);
-  }
+  var wFromPw = safe(function (pw, p) {
+    return unclampW(lib.GetHumRatioFromVapPres(pw, p));
+  });
+
+  var pwFromW = safe(function (w, p) {
+    return w <= 0 ? 0 : lib.GetVapPresFromHumRatio(w, p);
+  });
+
+  var wSat = safe(function (t, p) {
+    return lib.GetSatHumRatio(t, p);
+  });
+
+  var wFromRh = safe(function (t, rh, p) {
+    if (rh <= 0) return 0;
+    return lib.GetHumRatioFromRelHum(t, Math.min(rh, 1), p);
+  });
+
+  var rhFromW = safe(function (t, w, p) {
+    if (w <= 0) return 0;
+    return lib.GetRelHumFromVapPres(t, Math.min(lib.GetVapPresFromHumRatio(w, p), lib.GetSatVapPres(t)));
+  });
+
+  var dewPoint = safe(function (t, w, p) {
+    if (w <= LIB_MIN_W) return -Infinity;
+    return lib.GetTDewPointFromHumRatio(t, w, p);
+  });
+
+  var wFromWetBulb = safe(function (t, twb, p) {
+    if (twb > t) return NaN;
+    return unclampW(lib.GetHumRatioFromTWetBulb(t, twb, p));
+  });
+
+  var wetBulb = safe(function (t, w, p) {
+    return lib.GetTWetBulbFromHumRatio(t, Math.max(w, LIB_MIN_W), p);
+  });
 
   function enthalpy(t, w) {
-    return 1.006 * t + w * (2501 + 1.86 * t);
+    return lib.GetMoistAirEnthalpy(t, Math.max(w, LIB_MIN_W)) / 1000;
   }
 
-  function wFromEnthalpy(t, h) {
-    return (h - 1.006 * t) / (2501 + 1.86 * t);
-  }
+  var wFromEnthalpy = safe(function (t, h) {
+    return unclampW(lib.GetHumRatioFromEnthalpyAndTDryBulb(h * 1000, t));
+  });
 
   function specificVolume(t, w, p) {
-    return (0.287042 * (t + 273.15) * (1 + 1.607858 * w)) / (p / 1000);
+    return lib.GetMoistAirVolume(t, Math.max(w, LIB_MIN_W), p);
   }
 
+  /* PsychroLib has no W(T, v) inverse; v is linear in W, so invert it from two evaluations. */
   function wFromSpecificVolume(t, v, p) {
-    return ((v * (p / 1000)) / (0.287042 * (t + 273.15)) - 1) / 1.607858;
+    var v0 = lib.GetMoistAirVolume(t, LIB_MIN_W, p);
+    var v1 = lib.GetMoistAirVolume(t, 0.01 + LIB_MIN_W, p);
+    return LIB_MIN_W + ((v - v0) / (v1 - v0)) * 0.01;
   }
 
   function pressureFromElevation(z) {
-    return 101325 * Math.pow(1 - 2.25577e-5 * z, 5.2559);
+    return lib.GetStandardAtmPressure(z);
   }
 
   function properties(t, w, p) {
@@ -113,16 +100,17 @@
       humidityRatio: w,
       relativeHumidity: rhFromW(t, w, p),
       wetBulb: wetBulb(t, w, p),
-      dewPoint: dewPoint(w, p),
+      dewPoint: dewPoint(t, w, p),
       enthalpy: enthalpy(t, w),
       specificVolume: v,
       vapourPressure: pwFromW(w, p),
       absoluteHumidity: (w / v) * 1000,
-      density: (1 + w) / v
+      density: lib.GetMoistAirDensity(t, Math.max(w, LIB_MIN_W), p)
     };
   }
 
   global.Psychro = {
+    lib: lib,
     saturationPressure: saturationPressure,
     wFromPw: wFromPw,
     pwFromW: pwFromW,
@@ -137,7 +125,6 @@
     specificVolume: specificVolume,
     wFromSpecificVolume: wFromSpecificVolume,
     pressureFromElevation: pressureFromElevation,
-    properties: properties,
-    bisect: bisect
+    properties: properties
   };
 })(window);

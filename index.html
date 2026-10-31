@@ -68,8 +68,14 @@
                 <option value="none">None</option>
                 <option value="pmv" selected>PMV – ISO 7730 / ASHRAE 55</option>
                 <option value="adaptive">Adaptive – ASHRAE 55</option>
+                <option value="givoni">Givoni bioclimatic chart</option>
               </select>
             </label>
+
+            <fieldset id="givoni-controls" class="zone-list" hidden>
+              <legend class="field-label">Design strategies</legend>
+              <div id="givoni-zones"></div>
+            </fieldset>
 
             <div id="pmv-controls" class="grid-2">
               <label class="field">
@@ -231,8 +237,10 @@
       </main>
     </div>
 
+    <script src="js/vendor/psychrolib.js"></script>
     <script src="js/psychrometrics.js"></script>
     <script src="js/comfort.js"></script>
+    <script src="js/givoni.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

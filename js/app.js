@@ -3,6 +3,7 @@
 
   var P = window.Psychro;
   var C = window.Comfort;
+  var G = window.Givoni;
 
   function $(id) {
     return document.getElementById(id);
@@ -99,15 +100,29 @@
     return [x, y];
   }
 
+  /* Highest humidity ratio that is both physically possible and inside the top of the plot. */
+  function wTopAt(t) {
+    var ws = P.wSat(t, state.pressure);
+    if (yFraction(t, ws) <= 1) return ws;
+    var lo = 0;
+    var hi = ws;
+    for (var i = 0; i < 40; i++) {
+      var mid = (lo + hi) / 2;
+      if (yFraction(t, mid) <= 1) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
   function fromScreen(x, y) {
     var t = state.tMin + ((x - plot.x0) / (plot.x1 - plot.x0)) * (state.tMax - state.tMin);
     t = clamp(t, state.tMin, state.tMax);
-    var target = (plot.y1 - y) / (plot.y1 - plot.y0);
-    var ws = P.wSat(t, state.pressure);
+    var target = clamp((plot.y1 - y) / (plot.y1 - plot.y0), 0, 1);
+    var wTop = wTopAt(t);
     if (target <= 0) return { t: t, w: 0 };
-    if (target >= yFraction(t, ws)) return { t: t, w: ws };
+    if (target >= yFraction(t, wTop)) return { t: t, w: wTop };
     var lo = 0;
-    var hi = ws;
+    var hi = wTop;
     for (var i = 0; i < 40; i++) {
       var mid = (lo + hi) / 2;
       if (yFraction(t, mid) < target) lo = mid;
@@ -322,7 +337,7 @@
           var w = (wTop * i) / rows;
           var tLo = solveT(w, -level);
           var tHi = solveT(w, level);
-          var lo = Math.max(tLo, P.dewPoint(w, state.pressure));
+          var lo = Math.max(tLo, P.dewPoint(tHi, w, state.pressure));
           if (!(lo < tHi)) {
             if (left.length) break;
             continue;
@@ -349,6 +364,13 @@
       note =
         'Neutral operative temperature ' + a.neutral.toFixed(1) + ' °C for a mean outdoor temperature of ' + tOut.toFixed(1) + ' °C.' +
         (a.applicable ? '' : ' Outside the 10–33.5 °C range of applicability, limits are clamped.');
+    } else if (state.comfort === 'givoni') {
+      G.zones.forEach(function (gz) {
+        if (!gz.show) return;
+        var poly = G.polygon(gz, state.pressure);
+        if (poly) zones.push({ poly: poly, zone: gz, label: gz.name });
+      });
+      note = 'Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. Boundaries are editable in js/givoni.js.';
     }
     cache.comfort = zones.map(function (z) {
       z.poly = densify(z.poly, 0.25, 0.0004);
@@ -364,6 +386,9 @@
     if (state.comfort === 'adaptive') {
       var a = C.adaptive(effectiveTOut());
       return t >= a.limits80[0] && t <= a.limits80[1];
+    }
+    if (state.comfort === 'givoni') {
+      return G.contains(G.zones[G.zones.length - 1], t, w, state.pressure);
     }
     return false;
   }
@@ -400,12 +425,18 @@
     var bins = {};
     var max = 0;
     var comfortHours = 0;
+    var strategyHours = {};
     var p = state.pressure;
     for (var i = 0; i < rows.length; i++) {
       var d = rows[i];
       var w = P.wFromRh(d.t, d.rh, p);
       d.w = w;
-      if (state.comfort !== 'none' && inComfort(d.t, w)) comfortHours++;
+      if (state.comfort === 'givoni') {
+        G.classify(d.t, w, p).forEach(function (z) {
+          strategyHours[z.name] = (strategyHours[z.name] || 0) + 1;
+        });
+        if (strategyHours.Comfort && G.contains(G.zones[G.zones.length - 1], d.t, w, p)) comfortHours++;
+      } else if (state.comfort !== 'none' && inComfort(d.t, w)) comfortHours++;
       var bx = Math.floor(d.t);
       var by = Math.floor(w * 1000);
       if (d.t < state.tMin || d.t > state.tMax || by >= state.wMax) continue;
@@ -419,11 +450,31 @@
 
     var period = state.month ? MONTHS[state.month] : 'full year';
     var text = rows.length + ' hourly records (' + period + '). Darkest cell: ' + max + ' h.';
+    var stats = $('data-stats');
+    if (state.comfort === 'givoni' && rows.length) {
+      stats.textContent = text + ' Hours where each strategy is effective (zones overlap, so totals exceed 100%):';
+      var ul = document.createElement('ul');
+      ul.className = 'strategy-stats';
+      Object.keys(strategyHours)
+        .sort(function (a, b) { return strategyHours[b] - strategyHours[a]; })
+        .forEach(function (name) {
+          var li = document.createElement('li');
+          var label = document.createElement('span');
+          label.textContent = name;
+          var val = document.createElement('span');
+          val.textContent = ((strategyHours[name] / rows.length) * 100).toFixed(1) + '%';
+          li.appendChild(label);
+          li.appendChild(val);
+          ul.appendChild(li);
+        });
+      stats.appendChild(ul);
+      return;
+    }
     if (state.comfort !== 'none' && rows.length) {
       text += ' ' + comfortHours + ' h (' + ((comfortHours / rows.length) * 100).toFixed(1) + '%) fall inside the ' +
         (state.comfort === 'pmv' ? 'PMV ±0.5' : 'adaptive 80%') + ' comfort zone.';
     }
-    $('data-stats').textContent = text;
+    stats.textContent = text;
   }
 
   function parseWeather(text, fileName) {
@@ -691,13 +742,74 @@
 
   function drawComfort() {
     cache.comfort.forEach(function (z) {
+      var rgb = z.zone ? z.zone.rgb : COLORS.accentRgb;
       pathFrom(z.poly);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(' + COLORS.accentRgb + ',' + z.alpha + ')';
+      ctx.fillStyle = 'rgba(' + rgb + ',' + (z.zone ? (z.zone.id === 'c' ? 0.3 : 0.1) : z.alpha) + ')';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(' + COLORS.accentRgb + ',0.75)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(' + rgb + ',0.85)';
+      ctx.lineWidth = z.zone ? 1.4 : 1;
       ctx.stroke();
+    });
+  }
+
+  function drawGivoniLabels() {
+    if (state.comfort !== 'givoni') return;
+    var font = getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    cache.comfort.forEach(function (z) {
+      if (!z.zone || !z.zone.label) return;
+      var s = toScreen(z.zone.label[0], z.zone.label[1] / 1000);
+      if (!insidePlot(s, -8)) return;
+      ctx.font = '700 10px ' + font;
+      var w = ctx.measureText(z.zone.code).width + 8;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.strokeStyle = 'rgb(' + z.zone.rgb + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.rect(s[0] - w / 2, s[1] - 8, w, 16);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgb(' + z.zone.rgb + ')';
+      ctx.fillText(z.zone.code, s[0], s[1] + 0.5);
+    });
+
+    var shown = G.zones.filter(function (gz) { return gz.show; }).slice().reverse();
+    if (!shown.length) return;
+    var readout = $('readout');
+    var overlay = window.innerWidth > 860 && readout.offsetWidth;
+    var x = plot.x0 + (overlay ? readout.offsetWidth + 20 : 10);
+    var y = plot.y0 + 10;
+    ctx.font = '11px ' + font;
+    var width = 0;
+    shown.forEach(function (gz) {
+      width = Math.max(width, ctx.measureText(gz.name).width);
+    });
+    var boxW = width + 58;
+    var boxH = shown.length * 17 + 10;
+    if (x + boxW > plot.x1 - 10) x = plot.x1 - 10 - boxW;
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.strokeStyle = COLORS.minor;
+    ctx.beginPath();
+    ctx.rect(x, y, boxW, boxH);
+    ctx.fill();
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    shown.forEach(function (gz, i) {
+      var ry = y + 13 + i * 17;
+      ctx.fillStyle = 'rgba(' + gz.rgb + ',0.25)';
+      ctx.strokeStyle = 'rgb(' + gz.rgb + ')';
+      ctx.beginPath();
+      ctx.rect(x + 8, ry - 5, 12, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '700 10px ' + font;
+      ctx.fillStyle = 'rgb(' + gz.rgb + ')';
+      ctx.fillText(gz.code, x + 26, ry);
+      ctx.font = '11px ' + font;
+      ctx.fillStyle = COLORS.ink;
+      ctx.fillText(gz.name, x + 56, ry);
     });
   }
 
@@ -772,6 +884,7 @@
     var parts = ['Atmospheric pressure ' + (state.pressure / 1000).toFixed(3) + ' kPa'];
     if (state.comfort === 'pmv') parts.push('PMV comfort: ' + state.met + ' met, ' + state.clo + ' clo, ' + state.vel + ' m/s');
     if (state.comfort === 'adaptive') parts.push('Adaptive comfort, mean outdoor ' + effectiveTOut().toFixed(1) + ' °C');
+    if (state.comfort === 'givoni') parts.push('Givoni bioclimatic zones');
     if (state.station && state.station.name) parts.push(state.station.name + (state.month ? ' – ' + MONTHS[state.month] : ''));
     return parts.join('  ·  ');
   }
@@ -874,6 +987,7 @@
 
     drawAxes();
     drawFamilyLabels();
+    drawGivoniLabels();
     drawProcess();
     drawIndicator();
   }
@@ -942,6 +1056,11 @@
       var in80 = ind.t >= a.limits80[0] && ind.t <= a.limits80[1];
       html += '<div class="comfort-line"><dl><dt>Neutral temp.</dt><dd>' + fmt(a.neutral, 1) + ' °C</dd><dt>Acceptability</dt><dd class="' +
         (in80 ? 'ok' : 'bad') + '">' + (in90 ? '90%' : in80 ? '80%' : 'Outside') + '</dd></dl></div>';
+    } else if (state.comfort === 'givoni') {
+      var strategies = G.classify(ind.t, ind.w, state.pressure);
+      var comfy = strategies.some(function (z) { return z.id === 'c'; });
+      html += '<div class="comfort-line"><dl><dt>Strategy</dt><dd class="' + (comfy ? 'ok' : '') + '">' +
+        strategies.map(function (z) { return z.name; }).join(', ') + '</dd></dl></div>';
     }
     $('readout').innerHTML = html;
 
@@ -1098,7 +1217,7 @@
 
   function setIndicator(t, w) {
     state.indicator.t = clamp(t, state.tMin, state.tMax);
-    state.indicator.w = clamp(w, 0, P.wSat(state.indicator.t, state.pressure));
+    state.indicator.w = clamp(w, 0, wTopAt(state.indicator.t));
     updateReadout();
     scheduleRender();
   }
@@ -1277,6 +1396,39 @@
   function syncComfortControls() {
     $('pmv-controls').hidden = state.comfort !== 'pmv';
     $('adaptive-controls').hidden = state.comfort !== 'adaptive';
+    $('givoni-controls').hidden = state.comfort !== 'givoni';
+  }
+
+  function renderGivoniZones() {
+    var list = $('givoni-zones');
+    list.textContent = '';
+    G.zones.slice().reverse().forEach(function (gz) {
+      var label = document.createElement('label');
+      label.className = 'zone-toggle';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = gz.show;
+      cb.addEventListener('change', function () {
+        gz.show = cb.checked;
+        buildComfort();
+        scheduleRender();
+      });
+      var swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.style.background = 'rgba(' + gz.rgb + ',0.25)';
+      swatch.style.borderColor = 'rgb(' + gz.rgb + ')';
+      var code = document.createElement('span');
+      code.className = 'zone-code';
+      code.style.color = 'rgb(' + gz.rgb + ')';
+      code.textContent = gz.code;
+      var name = document.createElement('span');
+      name.textContent = gz.name;
+      label.appendChild(cb);
+      label.appendChild(swatch);
+      label.appendChild(code);
+      label.appendChild(name);
+      list.appendChild(label);
+    });
   }
 
   $('comfort-model').addEventListener('change', function () {
@@ -1480,6 +1632,7 @@
 
   renderMetricsTable();
   renderPoints();
+  renderGivoniZones();
   syncComfortControls();
   rebuild();
 
