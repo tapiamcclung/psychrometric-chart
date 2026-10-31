@@ -38,9 +38,10 @@ psychro/
 - Clicks in the grey area above the 100% RH line, on the axes or in the margins are ignored; only clicks inside the chart move the indicator
 - RH line labels: lines that wrap to the top axis are labelled above the chart, lines that end at the right edge are labelled inside the chart; in the RH chart all RH labels are on the right, outside the chart, and the left RH axis ticks are removed (the axis title moves to the right)
 - Collapsible Controls sidebar (left), mirrored by the Strategies sidebar (right)
-- Weather-data overlay: hourly points are binned into cells (1 °C × 1 g/kg); clicking shows the hours in that cell in the readout, and a legend in the bottom-right corner shows the colour ramp from 1 hour to the busiest cell
+- Weather-data overlay: hourly points are binned into cells (1 °C × 1 g/kg in the psychrometric chart, 1 °C × `RH_STEP` % RH in the RH chart so cells are true rectangles); clicking shows the hours in that cell in the readout, and a legend in the bottom-right corner shows the colour ramp from 1 hour to the busiest cell
 - "From weather data" for the mean outdoor temperature shows the value being used in the text box
 - Hovering the chart in Givoni mode highlights every zone under the pointer
+- The Current conditions box has a minimize/expand button and is minimized automatically in the RH chart (it shows a one-line summary)
 - Export to PNG, CSV or JSON
 
 ## Givoni bioclimatic chart
@@ -56,6 +57,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Zone vertices: `js/givoni.js`
 - Strategy text: `TEXT` table at the top of `js/strategies.js` (currently placeholders)
 - Mean outdoor temperature slope: `setMeanOutdoor()` in `js/givoni.js` (0.31 °C per °C)
+- RH chart cell height: `RH_STEP` in `js/app.js`
 
 ## Notes
 

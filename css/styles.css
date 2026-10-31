@@ -725,3 +725,50 @@ canvas {
 .strategies-badge[hidden] {
   display: none;
 }
+
+/* Minimizable "Current conditions" box (minimized automatically in the RH chart) */
+.readout-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.readout-toggle:hover {
+  background: var(--bg);
+}
+
+.readout-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.readout-compact {
+  display: none;
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.readout.min {
+  min-width: 0;
+  padding: 6px 36px 6px 10px;
+}
+
+.readout.min .readout-compact {
+  display: block;
+}
+
+.readout.min #readout-body > :not(.readout-compact) {
+  display: none;
+}

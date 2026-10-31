@@ -427,14 +427,19 @@
     });
   }
 
+  var RH_STEP = 2; // RH chart cells: 1 °C wide, 2 % RH tall
+
   function buildData() {
     syncTout();
     if (state.comfort === 'givoni') G.setMeanOutdoor(effectiveTOut());
     cache.bins = null;
+    cache.rhBins = null;
     cache.stats = null;
     if (!state.data) return;
     var rows = filteredData();
     var bins = {};
+    var rhBins = {};
+    var rhMax = 0;
     var max = 0;
     var comfortHours = 0;
     var strategyHours = {};
@@ -451,6 +456,11 @@
       } else if (state.comfort !== 'none' && inComfort(d.t, w)) comfortHours++;
       var bx = Math.floor(d.t);
       var by = Math.floor(w * 1000);
+      if (d.t >= state.tMin && d.t <= state.tMax) { // same data binned by RH for the RH chart
+        var rkey = bx + ':' + Math.min(Math.floor((d.rh * 100) / RH_STEP), 100 / RH_STEP - 1);
+        rhBins[rkey] = (rhBins[rkey] || 0) + 1;
+        if (rhBins[rkey] > rhMax) rhMax = rhBins[rkey];
+      }
       if (d.t < state.tMin || d.t > state.tMax || by >= state.wMax) continue;
       var key = bx + ':' + by;
       bins[key] = (bins[key] || 0) + 1;
@@ -458,6 +468,8 @@
     }
     cache.bins = bins;
     cache.binMax = max;
+    cache.rhBins = rhBins;
+    cache.rhBinMax = rhMax;
     cache.stats = { total: rows.length, comfort: comfortHours };
 
     var period = state.month ? MONTHS[state.month] : 'full year';
@@ -774,20 +786,35 @@
   }
 
   function drawData() {
-    if (!cache.bins || !state.showData) return;
-    var max = cache.binMax || 1;
-    Object.keys(cache.bins).forEach(function (key) {
+    if (!state.showData) return;
+    drawBins(cache.bins, cache.binMax, false, Math.max(0, 1 - 2 * state.morph));   // psychrometric chart cells (1 °C x 1 g/kg)
+    drawBins(cache.rhBins, cache.rhBinMax, true, Math.max(0, 2 * state.morph - 1)); // RH chart cells (1 °C x 5 % RH): true rectangles
+  }
+
+  function drawBins(bins, max, isRh, fade) {
+    if (!bins || fade <= 0) return;
+    max = max || 1;
+    var p = state.pressure;
+    Object.keys(bins).forEach(function (key) {
       var parts = key.split(':');
       var t = Number(parts[0]);
       var g = Number(parts[1]);
-      var w0 = g / 1000;
-      var w1 = (g + 1) / 1000;
-      var a = toScreen(t, w0);
-      var b = toScreen(t + 1, w0);
-      var c = toScreen(t + 1, w1);
-      var d = toScreen(t, w1);
-      var intensity = Math.sqrt(cache.bins[key] / max);
-      ctx.fillStyle = 'rgba(' + COLORS.dataRgb + ',' + (0.12 + intensity * 0.78).toFixed(3) + ')';
+      var a, b, c, d;
+      if (isRh) {
+        var r0 = (g * RH_STEP) / 100;
+        var r1 = ((g + 1) * RH_STEP) / 100;
+        a = toScreen(t, P.wFromRh(t, r0, p));
+        b = toScreen(t + 1, P.wFromRh(t + 1, r0, p));
+        c = toScreen(t + 1, P.wFromRh(t + 1, r1, p));
+        d = toScreen(t, P.wFromRh(t, r1, p));
+      } else {
+        a = toScreen(t, g / 1000);
+        b = toScreen(t + 1, g / 1000);
+        c = toScreen(t + 1, (g + 1) / 1000);
+        d = toScreen(t, (g + 1) / 1000);
+      }
+      var intensity = Math.sqrt(bins[key] / max);
+      ctx.fillStyle = 'rgba(' + COLORS.dataRgb + ',' + ((0.12 + intensity * 0.78) * fade).toFixed(3) + ')';
       ctx.beginPath();
       ctx.moveTo(a[0], a[1]);
       ctx.lineTo(b[0], b[1]);
@@ -797,6 +824,7 @@
       ctx.fill();
     });
   }
+
 
   function drawComfort() {
     cache.comfort.forEach(function (z) {
@@ -829,9 +857,10 @@
 
   // Legend for the data cells: the same colour ramp as drawData(), from 1 hour to the busiest cell.
   function drawDataLegend() {
-    if (!cache.bins || !state.showData || !cache.binMax) return;
+    var rhView = state.morph > 0.5;
+    var max = rhView ? cache.rhBinMax : cache.binMax;
+    if (!(rhView ? cache.rhBins : cache.bins) || !state.showData || !max) return;
     var font = getComputedStyle(document.body).fontFamily;
-    var max = cache.binMax;
     var n = 6;
     var sw = 22;
     var w = n * sw;
@@ -1171,7 +1200,7 @@
       ['Enthalpy', fmt(pr.enthalpy, 2) + ' kJ/kg'],
       ['Density', fmt(pr.density, 3) + ' kg/m³']
     ];
-    var html = '<h2>Current conditions</h2><dl>';
+    var html = '<p class="readout-compact">' + fmt(ind.t, 1) + ' °C · ' + fmt(pr.relativeHumidity * 100, 0) + ' % RH</p><h2>Current conditions</h2><dl>';
     rows.forEach(function (r) {
       html += '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
     });
@@ -1195,13 +1224,22 @@
         strategies.map(function (z) { return z.name; }).join(', ') + '</dd></dl></div>';
       document.dispatchEvent(new CustomEvent('psychro:zones', { detail: { zones: strategies, t: ind.t, w: ind.w } }));
     }
-    if (state.data && cache.bins && state.showData) { // data cell under the indicator (cells are 1 °C x 1 g/kg)
+    if (state.data && cache.bins && state.showData) { // data cell under the indicator
       var cx = Math.floor(ind.t);
-      var cy = Math.floor(ind.w * 1000);
-      html += '<div class="comfort-line"><dl><dt>Hours in this cell</dt><dd>' + (cache.bins[cx + ':' + cy] || 0) +
-        '</dd><dt>Cell range</dt><dd>' + cx + '–' + (cx + 1) + ' °C, ' + cy + '–' + (cy + 1) + ' g/kg</dd></dl></div>';
+      var count;
+      var range;
+      if (state.morphTarget >= 0.5) { // RH chart: 1 °C x 5 % RH cells
+        var ry = Math.min(Math.floor(clamp(pr.relativeHumidity * 100, 0, 100) / RH_STEP), 100 / RH_STEP - 1);
+        count = (cache.rhBins || {})[cx + ':' + ry] || 0;
+        range = cx + '–' + (cx + 1) + ' °C, ' + ry * RH_STEP + '–' + (ry + 1) * RH_STEP + ' % RH';
+      } else { // psychrometric chart: 1 °C x 1 g/kg cells
+        var cy = Math.floor(ind.w * 1000);
+        count = cache.bins[cx + ':' + cy] || 0;
+        range = cx + '–' + (cx + 1) + ' °C, ' + cy + '–' + (cy + 1) + ' g/kg';
+      }
+      html += '<div class="comfort-line"><dl><dt>Hours in this cell</dt><dd>' + count + '</dd><dt>Cell range</dt><dd>' + range + '</dd></dl></div>';
     }
-    $('readout').innerHTML = html;
+    $('readout-body').innerHTML = html;
 
     var rhPct = clamp(pr.relativeHumidity * 100, 0, 100);
     $('dbt').value = String(ind.t);
@@ -1394,8 +1432,23 @@
     if (f < 1) window.requestAnimationFrame(stepMorph);
   }
 
+  var lastRhMode = false;
+
+  function setReadoutMin(on) {
+    $('readout').classList.toggle('min', on);
+    var b = $('readout-toggle');
+    b.textContent = on ? '+' : '−';
+    b.setAttribute('aria-expanded', String(!on));
+    b.setAttribute('aria-label', on ? 'Expand current conditions' : 'Minimize current conditions');
+  }
+
   function syncChartType() {
     var rhMode = state.morphTarget >= 0.5;
+    if (rhMode !== lastRhMode) { // minimize the conditions box in the RH chart, restore it in the psychrometric chart
+      lastRhMode = rhMode;
+      setReadoutMin(rhMode);
+      updateReadout();
+    }
     $('btn-psy').classList.toggle('active', !rhMode);
     $('btn-rh').classList.toggle('active', rhMode);
     $('btn-psy').setAttribute('aria-pressed', String(!rhMode));
@@ -1560,6 +1613,7 @@
   $('morph').addEventListener('input', function () {
     state.morph = parseFloat($('morph').value) / 100;
     state.morphTarget = state.morph;
+    syncChartType();
     $('morph-out').textContent = Math.round(state.morph * 100) + '%';
     syncChartType();
     scheduleRender();
@@ -1624,6 +1678,10 @@
       updateReadout();
       scheduleRender();
     });
+  });
+
+  $('readout-toggle').addEventListener('click', function () {
+    setReadoutMin(!$('readout').classList.contains('min'));
   });
 
   $('tout-auto').addEventListener('change', function () {
