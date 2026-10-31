@@ -17,6 +17,7 @@ psychro/
     ├── comfort.js         PMV/PPD (ISO 7730) and adaptive comfort (ASHRAE 55)
     ├── givoni.js          Givoni bioclimatic zone definitions
     ├── psychrometrics.js  moist-air property equations (uses PsychroLib when loaded)
+    ├── sidebar.js         collapsible left Controls sidebar
     ├── strategies.js      right-hand Strategies sidebar
     └── vendor/
         └── psychrolib.js  PsychroLib (vendored)
@@ -35,7 +36,8 @@ psychro/
 - Configurable ranges, atmospheric pressure or elevation, and title/sub-title. Defaults are 0–50 °C and 0–35 g/kg (right axis labelled every 5 g/kg); loading a weather file widens the ranges only as far as that file needs, and clearing the data restores the defaults
 - Collapsible Strategies sidebar (right): lists the Givoni zone(s) at the indicator with placeholder strategy text; opens when you click the chart in Givoni mode
 - Clicks in the grey area above the 100% RH line, on the axes or in the margins are ignored; only clicks inside the chart move the indicator or open the Strategies sidebar
-- RH line labels are placed outside the chart (above the top axis and to the right of the chart)
+- RH line labels: lines that wrap to the top axis are labelled above the chart, lines that end at the right edge are labelled inside the chart; in the RH chart all RH labels are on the right, outside the chart, and the left RH axis ticks are removed (the axis title moves to the right)
+- Collapsible Controls sidebar (left), mirrored by the Strategies sidebar (right)
 - Export to PNG, CSV or JSON
 
 ## Givoni bioclimatic chart

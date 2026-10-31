@@ -78,7 +78,7 @@
   function computeLayout() {
     var narrow = size.w < 560;
     plot.x0 = narrow ? 44 : 64;
-    plot.x1 = size.w - (narrow ? 72 : 84);
+    plot.x1 = size.w - (narrow ? 44 : 64);
     plot.y0 = 64;
     plot.y1 = size.h - 52;
   }
@@ -698,7 +698,7 @@
       var baseAlpha = hl && !isHl ? 0.5 : 1;
       var placed = [];
       fam.lines.forEach(function (line) {
-        ctx.globalAlpha = baseAlpha * (line.anchor === 'right' ? 1 - state.morph : 1);
+        ctx.globalAlpha = baseAlpha * (line.anchor === 'right' ? 1 - state.morph : line.anchor === 'rh' ? Math.abs(1 - 2 * state.morph) : 1);
         if (ctx.globalAlpha <= 0.02) return;
         if (!line.label || !line._s) return;
         var s = line._s;
@@ -722,14 +722,18 @@
           ly = y;
         } else if (line.anchor === 'rh') {
           var ex = rhExit(s);
-          if (ex.top) { // leaves through the top edge: label above the chart
+          if (state.morph > 0.5) { // RH chart: label outside, on the right axis only
+            align = 'left';
+            lx = plot.x1 + 6;
+            ly = ex.y;
+          } else if (ex.top) { // wraps to the top axis: label above the chart
             align = 'center';
             lx = ex.x;
             ly = plot.y0 - 9;
-          } else { // leaves through the right edge (the only case in the RH chart): label outside, to the right
-            align = 'left';
-            lx = plot.x1 + 6 + 24 * (1 - state.morph);
-            ly = ex.y;
+          } else { // leaves through the right edge: label inside, as before
+            align = 'right';
+            lx = x - 4;
+            ly = Math.max(y + 7, plot.y0 + 7);
           }
         } else if (line.anchor === 'start') {
           align = 'right';
@@ -899,24 +903,14 @@
     ctx.fillText('Humidity ratio (g/kg dry air)', 0, 0);
     ctx.restore();
 
-    if (state.morph > 0) {
+    if (state.morph > 0) { // RH chart: the RH values are labelled on the right, so only the axis title is drawn
       ctx.save();
       ctx.globalAlpha = state.morph;
-      ctx.font = '11px ' + font;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      for (var r = 0; r <= 100; r += 10) {
-        var y = plot.y1 - (r / 100) * (plot.y1 - plot.y0);
-        ctx.beginPath();
-        ctx.moveTo(plot.x0 - 5, y);
-        ctx.lineTo(plot.x0, y);
-        ctx.stroke();
-        ctx.fillText(r + '%', plot.x0 - 7, y);
-      }
-      ctx.translate(12, (plot.y0 + plot.y1) / 2);
-      ctx.rotate(-Math.PI / 2);
+      ctx.translate(size.w - 12, (plot.y0 + plot.y1) / 2);
+      ctx.rotate(Math.PI / 2);
       ctx.font = '600 11px ' + font;
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText('Relative humidity (%)', 0, 0);
       ctx.restore();
     }
@@ -1015,8 +1009,7 @@
     ctx.moveTo(s[0], s[1]);
     ctx.lineTo(s[0], plot.y1);
     ctx.moveTo(s[0], s[1]);
-    if (state.morph > 0.5) ctx.lineTo(plot.x0, s[1]);
-    else ctx.lineTo(plot.x1, s[1]);
+    ctx.lineTo(plot.x1, s[1]);
     ctx.stroke();
     ctx.restore();
 

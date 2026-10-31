@@ -639,3 +639,61 @@ canvas {
 @media (max-width: 860px) {
   .stage { position: sticky; top: 0; z-index: 5; height: 60vh; height: 60dvh; background: var(--bg); }
 }
+
+/* Controls sidebar (left): collapsible like the Strategies panel */
+.sidebar-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg);
+}
+
+.sidebar-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sidebar.collapsed {
+  width: 44px;
+  overflow: hidden;
+}
+
+.sidebar.collapsed > :not(.sidebar-toggle) {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 12px 0;
+  border-bottom: 0;
+}
+
+.sidebar.collapsed .sidebar-tab {
+  writing-mode: vertical-rl;
+}
+
+@media (max-width: 860px) {
+  .sidebar-toggle { position: static; }
+  .sidebar-toggle .chev { transform: rotate(-90deg); }
+  .sidebar.collapsed { width: 100%; }
+  .sidebar.collapsed .sidebar-toggle { flex-direction: row; justify-content: space-between; padding: 12px 14px; }
+  .sidebar.collapsed .sidebar-tab { writing-mode: horizontal-tb; }
+}
