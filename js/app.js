@@ -38,7 +38,7 @@
   var state = {
     tMin: 0,
     tMax: 50,
-    wMax: 30,
+    wMax: 35,
     pressure: 101325,
     morph: 0,
     morphTarget: 0,
@@ -78,7 +78,7 @@
   function computeLayout() {
     var narrow = size.w < 560;
     plot.x0 = narrow ? 44 : 64;
-    plot.x1 = size.w - (narrow ? 44 : 64);
+    plot.x1 = size.w - (narrow ? 72 : 84);
     plot.y0 = 64;
     plot.y1 = size.h - 52;
   }
@@ -240,7 +240,7 @@
       })(r);
     }
 
-    var labelEvery = state.wMax > 40 ? 5 : state.wMax > 16 ? 2 : 1;
+    var labelEvery = state.wMax > 32 ? 5 : state.wMax > 16 ? 2 : 1;
     for (var g = 1; g <= state.wMax; g++) {
       (function (gw) {
         addLines(fam.w, gw, sampleCurve(function () { return gw / 1000; }), gw % 5 === 0, gw % labelEvery === 0 ? String(gw) : null, 'right');
@@ -548,7 +548,7 @@
       setPressure(P.pressureFromElevation(station.elevation));
     }
 
-    // Start from the default ranges (0-50 °C, 30 g/kg) and widen only as far as the data needs.
+    // Start from the default ranges (0-50 °C, 0-35 g/kg) and widen only as far as the data needs.
     var tLo = Infinity;
     var tHi = -Infinity;
     var wHi = 0;
@@ -560,7 +560,7 @@
     });
     state.tMin = Math.min(0, clamp(Math.floor(tLo / 5) * 5, -40, 60));
     state.tMax = Math.max(50, clamp(Math.ceil(tHi / 5) * 5, state.tMin + 10, 70));
-    state.wMax = Math.max(30, clamp(Math.ceil(wHi / 5) * 5, 5, 100));
+    state.wMax = Math.max(35, clamp(Math.ceil(wHi / 5) * 5, 5, 100));
     $('tmin').value = String(state.tMin);
     $('tmax').value = String(state.tMax);
     $('wmax').value = String(state.wMax);
@@ -673,6 +673,21 @@
     ctx.globalAlpha = 1;
   }
 
+  // Where an RH line leaves the plot: the crossing point with the top or right edge, and which edge it was.
+  function rhExit(s) {
+    for (var i = s.length - 1; i >= 0; i--) {
+      if (!insidePlot(s[i])) continue;
+      var p0 = s[i];
+      var p1 = s[i + 1];
+      if (!p1) return { x: p0[0], y: p0[1], top: false };
+      var fx = p1[0] > plot.x1 ? (plot.x1 - p0[0]) / (p1[0] - p0[0]) : 1;
+      var fy = p1[1] < plot.y0 ? (plot.y0 - p0[1]) / (p1[1] - p0[1]) : 1;
+      var f = Math.min(fx, fy);
+      return { x: p0[0] + f * (p1[0] - p0[0]), y: p0[1] + f * (p1[1] - p0[1]), top: fy < fx };
+    }
+    return { x: s[0][0], y: s[0][1], top: false };
+  }
+
   function drawFamilyLabels() {
     var hl = state.highlight;
     ctx.textBaseline = 'middle';
@@ -706,9 +721,16 @@
           lx = plot.x1 + 6;
           ly = y;
         } else if (line.anchor === 'rh') {
-          align = 'right';
-          lx = x - 4;
-          ly = Math.max(y + 7, plot.y0 + 7);
+          var ex = rhExit(s);
+          if (ex.top) { // leaves through the top edge: label above the chart
+            align = 'center';
+            lx = ex.x;
+            ly = plot.y0 - 9;
+          } else { // leaves through the right edge (the only case in the RH chart): label outside, to the right
+            align = 'left';
+            lx = plot.x1 + 6 + 24 * (1 - state.morph);
+            ly = ex.y;
+          }
         } else if (line.anchor === 'start') {
           align = 'right';
           lx = x - 4;
@@ -724,9 +746,10 @@
         }
         ctx.font = (isHl ? '600 ' : '') + '10px ' + getComputedStyle(document.body).fontFamily;
         var width = ctx.measureText(line.label).width + 4;
-        var left = align === 'right' ? lx - width : lx;
+        var left = align === 'right' ? lx - width : align === 'center' ? lx - width / 2 : lx;
+        var slack = line.anchor === 'rh' ? 6 : 0; // neighbouring RH labels along the top may overlap slightly
         var collides = placed.some(function (b) {
-          return left < b.x + b.w && left + width > b.x && Math.abs(ly - b.y) < 11;
+          return left < b.x + b.w - slack && left + width > b.x + slack && Math.abs(ly - b.y) < 11;
         });
         if (collides) return;
         placed.push({ x: left, y: ly, w: width });
@@ -1568,10 +1591,10 @@
     $('station').hidden = true;
     state.tMin = 0;
     state.tMax = 50;
-    state.wMax = 30;
+    state.wMax = 35;
     $('tmin').value = '0';
     $('tmax').value = '50';
-    $('wmax').value = '30';
+    $('wmax').value = '35';
     $('dbt').min = '0';
     $('dbt').max = '50';
     setIndicator(state.indicator.t, state.indicator.w);
@@ -1585,7 +1608,7 @@
       if (tMax - tMin < 10) tMax = tMin + 10;
       state.tMin = clamp(tMin, -40, 60);
       state.tMax = clamp(tMax, state.tMin + 10, 70);
-      state.wMax = clamp(Math.round(num('wmax', 30)), 5, 100);
+      state.wMax = clamp(Math.round(num('wmax', 35)), 5, 100);
       $('tmin').value = String(state.tMin);
       $('tmax').value = String(state.tMax);
       $('wmax').value = String(state.wMax);
