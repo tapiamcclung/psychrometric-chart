@@ -953,10 +953,31 @@
     ctx.restore();
   }
 
+  // Vertical centre (screen y) of a label's region at screen x: the span of its zone polygon, or of label.band.
+  function labelCenterY(zoneEntry, l, lt, x) {
+    var wTop = state.wMax / 1000;
+    if (l.band) {
+      var bd = l.band(lt, state.pressure, wTop);
+      return (toScreen(lt, Math.min(bd[0], wTop))[1] + toScreen(lt, Math.min(bd[1], wTop))[1]) / 2;
+    }
+    if (!zoneEntry) return null;
+    var s = screenPts(zoneEntry.poly);
+    var ys = [];
+    for (var i = 0; i < s.length; i++) {
+      var p = s[i];
+      var q = s[(i + 1) % s.length];
+      if (p[0] <= x !== q[0] <= x) ys.push(p[1] + ((x - p[0]) * (q[1] - p[1])) / (q[0] - p[0]));
+    }
+    if (ys.length < 2) return null;
+    return (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
+  }
+
   function drawGivoniLabels() {
     if (state.comfort !== 'givoni') return;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    var entries = {};
+    cache.comfort.forEach(function (z) { if (z.zone) entries[z.zone.id] = z; });
     G.zones.forEach(function (gz) {
       if (!gz.show || !gz.labels) return;
       gz.labels.forEach(function (l) {
@@ -968,6 +989,10 @@
           wl = ws - 0.15 * (ws - P.wFromRh(lt, 0.8, state.pressure));
         }
         var s = toScreen(lt, wl);
+        if (!l0.abs) { // centre the label vertically inside its region
+          var cy = labelCenterY(entries[gz.id], l0, lt, s[0]);
+          if (cy !== null) s = [s[0], cy];
+        }
         var ang = l0.rot !== undefined ? l0.rot : l0.v ? Math.PI / 2 : 0;
         if (l.sat) { // run the text along the saturation curve
           var a = toScreen(lt - 0.5, P.wSat(lt - 0.5, state.pressure));

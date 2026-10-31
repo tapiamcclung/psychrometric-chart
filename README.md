@@ -57,7 +57,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Zone vertices: `js/givoni.js`
 - Strategy text: `TEXT` table at the top of `js/strategies.js` (currently placeholders)
 - Mean outdoor temperature slope: `setMeanOutdoor()` in `js/givoni.js` (0.31 °C per °C)
-- RH chart cell height: `RH_STEP` in `js/app.js`
+- RH chart cell height: `RH_STEP` in `js/app.js` (currently 2)
 
 ## Notes
 
@@ -70,6 +70,8 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Unticking "From weather data" keeps the value shown in the box as the manual setting; while it follows the weather data the box is greyed out
 - The mass cooling and night ventilation label is split in two lines, and shortened to "MASS COOL & / NIGHT VENT." in the RH chart
 - Data cells are inset by up to 2 px on every side so grid lines show between neighbouring cells
+- Givoni labels are centred vertically in their zone at the label's temperature (a label can set `band` in `js/givoni.js` to centre in a different region); the active solar, passive solar heating, internal gains, comfort zone and air-conditioning & dehumidification labels are split in two lines
+- `RH_STEP` is 2 (RH chart cells are 1 °C wide and 2 % RH tall)
 
 ## Limitations
 

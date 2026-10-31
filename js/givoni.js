@@ -12,7 +12,9 @@
  *   close: undefined = closed solid outline, 'none' = leave the last edge open
  *   dash: dash pattern    width: line width    fill: 'r,g,b,a'
  *   labels: {t, w in g/kg, v: vertical, sat: follow the saturation curve}, or {dyn: function(p)} for computed labels;
- *           use \n for line breaks and textRh for the shorter text shown in the RH chart
+ *           use \n for line breaks and textRh for the shorter text shown in the RH chart.
+ *           Labels are centred vertically in the zone at their temperature t; band(t, p, wTop) returns [lo, hi]
+ *           (kg/kg) to centre in a different region (e.g. the strip below the comfort zone) instead.
  *   classify:false = not counted when classifying a point (display only)
  */
 (function (global) {
@@ -41,24 +43,24 @@
   var ZONES = [
     { id: 'ac', code: 'AC', name: 'Air-conditioning', rgb: '71,85,105', classify: false, close: 'none', dash: [8, 5],
       build: function () { return [pt(T(41), 0), pt(50, 0), pt(50, 16), pt(T(40), 16)]; },
-      labels: [{ text: 'AIR-CONDITIONING', t: 49.2 - D, w: 8, v: true }, { text: 'AIR-CONDITIONING & DEHUMIDIFICATION', t: 39, w: 22.6 }] },
+      labels: [{ text: 'AIR-CONDITIONING', t: 49.2 - D, w: 8, v: true }, { text: 'AIR-CONDITIONING &\nDEHUMIDIFICATION', t: 39, w: 22.6, band: function (t, p, wTop) { return [CAP, Math.min(P.wSat(t, p), wTop)]; } }] },
     { id: 'heat', code: 'AH', name: 'Heating', rgb: '153,27,27', classify: false,
-      labels: [{ text: 'HEATING', t: 3.1, w: 2.5, v: true }] },
+      labels: [{ text: 'HEATING', t: 3.1, w: 2.5, v: true, band: function (t, p) { return [0, P.wSat(t, p)]; } }] },
     { id: 'as', code: 'ASH', name: 'Active solar heating', rgb: '234,88,12', close: 'none',
       build: function (p) { return [pt(T(7), 0), pt(T(4), 0)].concat(arc(rh(1, p), T(4), T(7))); },
-      labels: [{ text: 'ACTIVE SOLAR', t: 4.7, w: 2.5, v: true }] },
+      labels: [{ text: 'ACTIVE\nSOLAR', t: 4.7, w: 2.5, v: true }] },
     { id: 'ps', code: 'PSH', name: 'Passive solar heating', rgb: '202,138,4', close: 'none',
       build: function (p) { return [pt(T(19), 0), pt(T(8), 0)].concat(arc(rh(1, p), T(8), T(19))); },
-      labels: [{ text: 'PASSIVE SOLAR HEATING', t: 8.7, w: 3.3, v: true }] },
+      labels: [{ text: 'PASSIVE SOLAR\nHEATING', t: 8.7, w: 3.3, v: true }] },
     { id: 'ig', code: 'IG', name: 'Internal gains', rgb: '161,98,7', close: 'none',
       build: function (p) { return arc(rh(0.2, p), T(17.5), T(12.5)).concat(arc(rh(0.8, p), T(12.5), T(17.5))); },
-      labels: [{ text: 'INTERNAL GAINS', t: 13.1, w: 4.5, v: true }] },
+      labels: [{ text: 'INTERNAL\nGAINS', t: 13.1, w: 4.5, v: true }] },
     { id: 'win', code: 'WIN', name: 'Winter', rgb: '120,113,108', classify: false, close: 'none', dash: [2, 4], width: 1.6,
       build: function (p) { return arc(rh(0.2, p), T(19.5), T(18)).concat(arc(rh(0.8, p), T(18), T(19.5))); },
       labels: [{ text: 'WINTER', t: 18.7, w: 6.5, v: true }] },
     { id: 'h', code: 'H', name: 'Humidification', rgb: '180,120,20', classify: false, close: 'none',
       build: function () { return [pt(T(19), 0), pt(T(23.5), 0)]; },
-      labels: [{ text: 'HUMIDIFICATION', t: 15, w: 0.6 }] },
+      labels: [{ text: 'HUMIDIFICATION', t: 15, w: 0.6, band: function (t, p) { return [0, P.wFromRh(t, 0.2, p)]; } }] },
     { id: 'mnv', code: 'MNV', name: 'Mass cooling + night ventilation', rgb: '147,51,234',
       build: function (p) {
         var wb = wLow(p);
@@ -82,10 +84,10 @@
         var t0 = (1.006 * T(20) + wb * (2501 + 1.86 * T(20))) / 1.006;   // constant-enthalpy line from the comfort corner down to W = 0
         return [[T(20), wb], [t0, 0], [T(41), 0], [T(41), pct(0.1, p)(T(41))], [T(39), pct(0.2, p)(T(39))], [T(36), pct(0.3, p)(T(36))]].concat(comfortTopLeft(p));
       },
-      labels: [{ text: 'EVAPORATIVE COOLING', t: 34.1, w: 0.6 }] },
+      labels: [{ text: 'EVAPORATIVE COOLING', t: 34.1, w: 0.6, band: function (t, p) { return [0, wLow(p)]; } }] },
     { id: 'c', code: 'C', name: 'Comfort', rgb: '15,118,110', fill: '134,239,172,0.3',
       build: function (p) { return arc(rh(0.2, p), T(20), T(27)).concat(comfortTop(p)); },
-      labels: [{ text: 'COMFORT ZONE', t: 23.5, w: 10 }] },
+      labels: [{ text: 'COMFORT\nZONE', t: 23.5, w: 10 }] },
     // Dotted line at the mean outdoor temperature, labelled just above the saturation curve.
     { id: 'tmo', code: 'MOT', name: 'Mean outdoor temperature', rgb: '15,23,42', classify: false, close: 'none', dash: [2, 4], width: 1.6, absolute: true,
       build: function (p) { return [[TMO, 0], [TMO, P.wSat(TMO, p) + 0.002]]; },
