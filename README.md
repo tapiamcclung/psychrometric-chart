@@ -69,6 +69,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Zone geometry was checked against screenshots of Marsh's chart at 101.3 and 77.2 kPa, not against its source code
 - Unticking "From weather data" keeps the value shown in the box as the manual setting; while it follows the weather data the box is greyed out
 - The mass cooling and night ventilation label is split in two lines, and shortened to "MASS COOL & / NIGHT VENT." in the RH chart
+- Data cells are inset by up to 2 px on every side so grid lines show between neighbouring cells
 
 ## Limitations
 

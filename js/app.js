@@ -791,6 +791,34 @@
     drawBins(cache.rhBins, cache.rhBinMax, true, Math.max(0, 2 * state.morph - 1)); // RH chart cells (1 °C x 5 % RH): true rectangles
   }
 
+  // Shrink a convex quadrilateral (screen points) by m pixels on every side, so neighbouring cells leave a small gap.
+  function insetQuad(q, m) {
+    var cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4;
+    var cy = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
+    var lines = [];
+    for (var i = 0; i < 4; i++) {
+      var p = q[i];
+      var r = q[(i + 1) % 4];
+      var dx = r[0] - p[0];
+      var dy = r[1] - p[1];
+      var len = Math.hypot(dx, dy) || 1;
+      var nx = -dy / len;
+      var ny = dx / len;
+      if ((cx - p[0]) * nx + (cy - p[1]) * ny < 0) { nx = -nx; ny = -ny; } // normal pointing into the cell
+      lines.push({ px: p[0] + nx * m, py: p[1] + ny * m, dx: dx, dy: dy });
+    }
+    var out = [];
+    for (var k = 0; k < 4; k++) { // corner k = where the offset edges k-1 and k meet
+      var l1 = lines[(k + 3) % 4];
+      var l2 = lines[k];
+      var det = l1.dx * l2.dy - l1.dy * l2.dx;
+      if (Math.abs(det) < 1e-9) { out.push([l2.px, l2.py]); continue; }
+      var t = ((l2.px - l1.px) * l2.dy - (l2.py - l1.py) * l2.dx) / det;
+      out.push([l1.px + t * l1.dx, l1.py + t * l1.dy]);
+    }
+    return out;
+  }
+
   function drawBins(bins, max, isRh, fade) {
     if (!bins || fade <= 0) return;
     max = max || 1;
@@ -815,11 +843,15 @@
       }
       var intensity = Math.sqrt(bins[key] / max);
       ctx.fillStyle = 'rgba(' + COLORS.dataRgb + ',' + ((0.12 + intensity * 0.78) * fade).toFixed(3) + ')';
+      var cw = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      var ch = Math.hypot(d[0] - a[0], d[1] - a[1]);
+      var margin = Math.min(2, 0.15 * Math.min(cw, ch)); // up to 2 px; smaller for tiny cells
+      var q = margin >= 0.3 ? insetQuad([a, b, c, d], margin) : [a, b, c, d];
       ctx.beginPath();
-      ctx.moveTo(a[0], a[1]);
-      ctx.lineTo(b[0], b[1]);
-      ctx.lineTo(c[0], c[1]);
-      ctx.lineTo(d[0], d[1]);
+      ctx.moveTo(q[0][0], q[0][1]);
+      ctx.lineTo(q[1][0], q[1][1]);
+      ctx.lineTo(q[2][0], q[2][1]);
+      ctx.lineTo(q[3][0], q[3][1]);
       ctx.closePath();
       ctx.fill();
     });
