@@ -15,6 +15,8 @@
  *           use \n for line breaks and textRh for the shorter text shown in the RH chart.
  *           Labels are centred vertically in the zone at their temperature t; band(t, p, wTop) returns [lo, hi]
  *           (kg/kg) to centre in a different region (e.g. the strip below the comfort zone) instead.
+ *           edgeT + rightInset keep a label rightInset pixels inside a vertical edge of its zone (edgeAbs: the edge does
+ *           not move with the mean outdoor temperature); visible(shift) can hide a label, e.g. when its zone leaves the plot.
  *   classify:false = not counted when classifying a point (display only)
  */
 (function (global) {
@@ -43,7 +45,7 @@
   var ZONES = [
     { id: 'ac', code: 'AC', name: 'Air-conditioning', rgb: '71,85,105', classify: false, close: 'none', dash: [8, 5],
       build: function () { return [pt(T(41), 0), pt(50, 0), pt(50, 16), pt(T(40), 16)]; },
-      labels: [{ text: 'AIR-CONDITIONING', t: 49.2 - D, w: 8, v: true }, { text: 'AIR-CONDITIONING &\nDEHUMIDIFICATION', t: 39, w: 22.6, band: function (t, p, wTop) { return [CAP, Math.min(P.wSat(t, p), wTop)]; } }] },
+      labels: [{ text: 'AIR-CONDITIONING', t: 49, w: 8, v: true, edgeT: 50, edgeAbs: true, rightInset: 14, visible: function (d) { return 41 + d < 49; } }, { text: 'AIR-CONDITIONING &\nDEHUMIDIFICATION', t: 39, w: 22.6, band: function (t, p, wTop) { return [CAP, Math.min(P.wSat(t, p), wTop)]; } }] },
     { id: 'heat', code: 'AH', name: 'Heating', rgb: '153,27,27', classify: false,
       labels: [{ text: 'HEATING', t: 3.1, w: 2.5, v: true, band: function (t, p) { return [0, P.wSat(t, p)]; } }] },
     { id: 'as', code: 'ASH', name: 'Active solar heating', rgb: '234,88,12', close: 'none',
@@ -66,7 +68,7 @@
         var wb = wLow(p);
         return [[T(37), wb], [T(44), wb], [T(44), Math.min(CAP, pct(0.2, p)(T(44)))], [T(40), CAP], [T(33), CAP], [T(37), Math.min(CAP, pct(0.3, p)(T(37)))]];
       },
-      labels: [{ text: 'MASS COOLING &\nNIGHT VENTILATION', textRh: 'MASS COOL &\nNIGHT VENT.', t: 42.2, w: 8, v: true }] },
+      labels: [{ text: 'MASS COOLING &\nNIGHT VENTILATION', textRh: 'MASS COOL &\nNIGHT VENT.', t: 43, w: 8, v: true, edgeT: 44, rightInset: 20 }] },
     { id: 'm', code: 'M', name: 'Mass cooling', rgb: '192,38,211',
       build: function (p) {
         var wb = wLow(p);
@@ -77,7 +79,7 @@
       build: function (p) {
         return arc(rh(1, p), T(20), T(27)).concat([[T(32), pct(0.5, p)(T(32))], [T(32), rh(0.2, p)(T(32))]], arc(rh(0.2, p), T(32), T(27)), comfortTop(p));
       },
-      labels: [{ text: 'NATURAL VENTILATION', t: 23.8, w: 17.9, sat: true }] },
+      labels: [{ text: 'NATURAL VENTILATION', t: 23.5, w: 17.9, sat: true }] },
     { id: 'dec', code: 'EC', name: 'Evaporative cooling', rgb: '2,132,199',
       build: function (p) {
         var wb = wLow(p);

@@ -981,6 +981,7 @@
     G.zones.forEach(function (gz) {
       if (!gz.show || !gz.labels) return;
       gz.labels.forEach(function (l) {
+        if (l.visible && !l.visible(G.shift())) return; // e.g. the zone has moved out of the plot
         var l0 = l.dyn ? l.dyn(state.pressure) : l; // computed labels (mean outdoor temperature) are placed absolutely
         var lt = l0.abs ? l0.t : l0.t + G.shift();   // other labels move with the zones
         var wl = l0.w / 1000;
@@ -989,7 +990,11 @@
           wl = ws - 0.15 * (ws - P.wFromRh(lt, 0.8, state.pressure));
         }
         var s = toScreen(lt, wl);
-        if (!l0.abs) { // centre the label vertically inside its region
+        if (l0.edgeT !== undefined) { // keep the label a fixed number of pixels inside a vertical (right) edge of its zone
+          var edgeX = toScreen(l0.edgeAbs ? l0.edgeT : l0.edgeT + G.shift(), 0)[0];
+          s = [edgeX - (l0.rightInset || 0), s[1]];
+        }
+        if (!l0.abs && !l.sat) { // centre the label vertically inside its region (curve labels hug the curve instead)
           var cy = labelCenterY(entries[gz.id], l0, lt, s[0]);
           if (cy !== null) s = [s[0], cy];
         }
@@ -998,6 +1003,9 @@
           var a = toScreen(lt - 0.5, P.wSat(lt - 0.5, state.pressure));
           var b = toScreen(lt + 0.5, P.wSat(lt + 0.5, state.pressure));
           ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+          // hug the curve: sit on it, then move 14 px into the region perpendicular to the curve
+          var sp = toScreen(lt, Math.min(P.wSat(lt, state.pressure), state.wMax / 1000));
+          s = [sp[0] - Math.sin(ang) * 14, sp[1] + Math.cos(ang) * 14];
         }
         ctx.save();
         ctx.translate(s[0], s[1]);
