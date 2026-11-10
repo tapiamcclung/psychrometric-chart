@@ -772,3 +772,87 @@ canvas {
 .readout.min #readout-body > :not(.readout-compact) {
   display: none;
 }
+
+/*
+ * Visually hidden inputs (.sr-only) are absolutely positioned. Without a positioned ancestor they sat at their
+ * static position in the page, far below the viewport, so focusing the hidden file input (clicking
+ * "Load EPW / CSV…") scrolled the whole page. Anchor them to their own control instead.
+ */
+.file-btn,
+.sidebar,
+.strategies {
+  position: relative;
+}
+
+/* Design strategies (Givoni zone toggles) */
+.zone-list {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.zone-list .field-label {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+#givoni-zones {
+  display: grid;
+  gap: 1px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.zone-toggle {
+  display: grid;
+  grid-template-columns: 16px 14px 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.25;
+  cursor: pointer;
+  user-select: none;
+}
+
+.zone-toggle:hover {
+  background: var(--bg);
+}
+
+.zone-toggle:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.zone-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.zone-toggle .swatch {
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 1.5px solid;
+  border-radius: 4px;
+}
+
+.zone-toggle .zone-code {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.zone-toggle:has(input:not(:checked)) .swatch,
+.zone-toggle:has(input:not(:checked)) .zone-code,
+.zone-toggle:has(input:not(:checked)) span:last-child {
+  opacity: 0.4;
+}
