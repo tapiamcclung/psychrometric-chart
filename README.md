@@ -70,8 +70,9 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Unticking "From weather data" keeps the value shown in the box as the manual setting; while it follows the weather data the box is greyed out
 - The mass cooling and night ventilation label is split in two lines, and shortened to "MASS COOL & / NIGHT VENT." in the RH chart
 - Data cells are inset by up to 2 px on every side so grid lines show between neighbouring cells
-- Givoni labels are centred vertically in their zone at the label's temperature (a label can set `band` in `js/givoni.js` to centre in a different region); the natural ventilation label hugs the saturation curve at the top of its region; the mass cooling and night ventilation label stays 20 px inside the right edge of its zone; the air conditioning label stays flush with the right edge of the chart whatever the mean outdoor temperature, and is hidden once its zone has moved out of the plot; the active solar, passive solar heating, internal gains, comfort zone and air-conditioning & dehumidification labels are split in two lines
-- `RH_STEP` is 2 (RH chart cells are 1 °C wide and 2 % RH tall) 
+- Givoni labels are centred vertically in their zone at the label's temperature (a label can set `band` in `js/givoni.js` to centre in a different region); the natural ventilation label hugs the saturation curve at the top of its region; the mass cooling and night ventilation label stays 20 px inside the right edge of its zone; the AIR-CONDITIONING label stays flush with the right edge of the chart whatever the mean outdoor temperature, and is hidden once its zone has moved out of the plot; the active solar, passive solar heating, internal gains, comfort zone and air-conditioning & dehumidification labels are split in two lines
+- `RH_STEP` is 2 (RH chart cells are 1 °C wide and 2 % RH tall)
+- All project scripts (`app.js`, `comfort.js`, `givoni.js`, `psychrometrics.js`, `sidebar.js`, `strategies.js`) use `const`/`let` and arrow functions: there is no `var` and no `function` keyword left (functions are `const name = (...) => ...`, so a function must be defined above the code that calls it at load time). The vendored `js/vendor/psychrolib.js` is unchanged
 
 ## Limitations
 

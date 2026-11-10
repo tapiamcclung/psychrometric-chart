@@ -3,10 +3,10 @@
  * the indicator (zones overlap, so several can apply). Replace the text below with real guidance.
  * app.js dispatches a 'psychro:zones' event whenever the indicator moves while the Givoni chart is active.
  */
-(function () {
+(() => {
   'use strict';
 
-  var TEXT = {
+  const TEXT = {
     c:    { tips: ['Placeholder: conditions are within the comfort zone.', 'Placeholder: no active conditioning is needed.'] },
     v:    { tips: ['Placeholder: open windows on opposite sides for cross-ventilation.', 'Placeholder: use ceiling fans to extend the comfort range.'] },
     m:    { tips: ['Placeholder: use heavy walls and floors to absorb daytime heat.', 'Placeholder: shade the thermal mass from direct summer sun.'] },
@@ -21,61 +21,61 @@
     dehum:{ tips: ['Placeholder: mechanical cooling with dehumidification is required.', 'Placeholder: control moisture sources and infiltration.'] }
   };
 
-  var panel = document.getElementById('strategies');
-  var toggle = document.getElementById('strategies-toggle');
-  var body = document.getElementById('strategies-body');
-  var list = document.getElementById('strategies-list');
-  var sub = document.getElementById('strategies-sub');
-  var model = document.getElementById('comfort-model');
-  var chev = toggle.querySelector('.chev');
-  var badge = document.getElementById('strategies-count');
+  const panel = document.getElementById('strategies');
+  const toggle = document.getElementById('strategies-toggle');
+  const body = document.getElementById('strategies-body');
+  const list = document.getElementById('strategies-list');
+  const sub = document.getElementById('strategies-sub');
+  const model = document.getElementById('comfort-model');
+  const chev = toggle.querySelector('.chev');
+  const badge = document.getElementById('strategies-count');
 
-  function setOpen(open) {
+  const setOpen = (open) => {
     panel.classList.toggle('collapsed', !open);
     body.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
     chev.textContent = open ? '›' : '‹';
-  }
+  };
 
-  function message(text) {
+  const message = (text) => {
     list.textContent = '';
-    var p = document.createElement('p');
+    const p = document.createElement('p');
     p.className = 'hint';
     p.textContent = text;
     list.appendChild(p);
-  }
+  };
 
-  function render(zones, t, w) {
+  const render = (zones, t, w) => {
     sub.textContent = t.toFixed(1) + ' °C, ' + (w * 1000).toFixed(1) + ' g/kg';
     badge.textContent = String(zones.length);   // the panel stays closed; the tab shows how many strategies apply
     badge.hidden = false;
     toggle.title = zones.length + (zones.length === 1 ? ' strategy' : ' strategies') + ' for the selected point';
     list.textContent = '';
-    zones.forEach(function (z) {
-      var card = document.createElement('section');
+    zones.forEach((z) => {
+      const card = document.createElement('section');
       card.className = 'strategy';
       card.style.borderLeftColor = 'rgb(' + z.rgb + ')';
-      var h = document.createElement('h3');
+      const h = document.createElement('h3');
       h.textContent = z.name;
       card.appendChild(h);
-      var ul = document.createElement('ul');
-      ((TEXT[z.id] || { tips: ['Placeholder text.'] }).tips).forEach(function (tip) {
-        var li = document.createElement('li');
+      const ul = document.createElement('ul');
+      ((TEXT[z.id] || { tips: ['Placeholder text.'] }).tips).forEach((tip) => {
+        const li = document.createElement('li');
         li.textContent = tip;
         ul.appendChild(li);
       });
       card.appendChild(ul);
       list.appendChild(card);
     });
-  }
+  };
 
-  toggle.addEventListener('click', function () { setOpen(panel.classList.contains('collapsed')); });
+  toggle.addEventListener('click', () => { setOpen(panel.classList.contains('collapsed')); });
 
-  document.addEventListener('psychro:zones', function (e) {
+  document.addEventListener('psychro:zones', (e) => {
     render(e.detail.zones, e.detail.t, e.detail.w);
   });
 
-  model.addEventListener('change', function () {
+  model.addEventListener('change', () => {
     sub.textContent = '';
     if (model.value !== 'givoni') badge.hidden = true;
     if (model.value !== 'givoni') message('Choose “Givoni bioclimatic chart” under Comfort overlay, then click the chart to see strategies for that point.');

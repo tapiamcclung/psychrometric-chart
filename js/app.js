@@ -1,15 +1,13 @@
-(function () {
+(() => {
   'use strict';
 
-  var P = window.Psychro;
-  var C = window.Comfort;
-  var G = window.Givoni;
+  const P = window.Psychro;
+  const C = window.Comfort;
+  const G = window.Givoni;
 
-  function $(id) {
-    return document.getElementById(id);
-  }
+  const $ = (id) => document.getElementById(id);
 
-  var COLORS = {
+  const COLORS = {
     page: '#ffffff',
     invalid: '#f1f2ee',
     ink: '#1b2430',
@@ -23,9 +21,9 @@
     point: '#be123c'
   };
 
-  var MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  var FAMILIES = [
+  const FAMILIES = [
     { id: 'dbt', name: 'Dry-bulb temp.', unit: '°C', show: true },
     { id: 'w', name: 'Humidity ratio', unit: 'g/kg', show: true },
     { id: 'rh', name: 'Relative humidity', unit: '%', show: true },
@@ -35,7 +33,7 @@
     { id: 'h', name: 'Enthalpy', unit: 'kJ/kg', show: false }
   ];
 
-  var state = {
+  const state = {
     tMin: 0,
     tMax: 50,
     wMax: 35,
@@ -63,135 +61,133 @@
 
   state.indicator.w = P.wFromRh(22, 0.5, state.pressure);
 
-  var canvas = $('chart');
-  var ctx = canvas.getContext('2d');
-  var size = { w: 0, h: 0, dpr: 1 };
-  var plot = { x0: 0, y0: 0, x1: 0, y1: 0 };
-  var cache = { valid: [], comfort: [], bins: null, binMax: 0, stats: null };
-  var renderQueued = false;
-  var drag = null;
+  const canvas = $('chart');
+  const ctx = canvas.getContext('2d');
+  const size = { w: 0, h: 0, dpr: 1 };
+  const plot = { x0: 0, y0: 0, x1: 0, y1: 0 };
+  const cache = { valid: [], comfort: [], bins: null, binMax: 0, stats: null };
+  let renderQueued = false;
+  let drag = null;
 
   /* ---------------------------------------------------------------- */
   /* Coordinate mapping                                                */
   /* ---------------------------------------------------------------- */
 
-  function computeLayout() {
-    var narrow = size.w < 560;
+  const computeLayout = () => {
+    const narrow = size.w < 560;
     plot.x0 = narrow ? 44 : 64;
     plot.x1 = size.w - (narrow ? 44 : 64);
     plot.y0 = 64;
     plot.y1 = size.h - 52;
-  }
+  };
 
-  function clamp(v, lo, hi) {
-    return v < lo ? lo : v > hi ? hi : v;
-  }
+  const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
 
-  function yFraction(t, w) {
-    var psy = (w * 1000) / state.wMax;
+  const yFraction = (t, w) => {
+    const psy = (w * 1000) / state.wMax;
     if (state.morph === 0) return psy;
-    var rh = clamp(P.rhFromW(t, w, state.pressure), 0, 1.05);
+    const rh = clamp(P.rhFromW(t, w, state.pressure), 0, 1.05);
     return psy * (1 - state.morph) + rh * state.morph;
-  }
+  };
 
-  function toScreen(t, w) {
-    var x = plot.x0 + ((t - state.tMin) / (state.tMax - state.tMin)) * (plot.x1 - plot.x0);
-    var y = plot.y1 - yFraction(t, w) * (plot.y1 - plot.y0);
+  const toScreen = (t, w) => {
+    const x = plot.x0 + ((t - state.tMin) / (state.tMax - state.tMin)) * (plot.x1 - plot.x0);
+    const y = plot.y1 - yFraction(t, w) * (plot.y1 - plot.y0);
     return [x, y];
-  }
+  };
 
   /* Highest humidity ratio that is both physically possible and inside the top of the plot. */
-  function wTopAt(t) {
-    var ws = P.wSat(t, state.pressure);
+  const wTopAt = (t) => {
+    const ws = P.wSat(t, state.pressure);
     if (yFraction(t, ws) <= 1) return ws;
-    var lo = 0;
-    var hi = ws;
-    for (var i = 0; i < 40; i++) {
-      var mid = (lo + hi) / 2;
+    let lo = 0;
+    let hi = ws;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
       if (yFraction(t, mid) <= 1) lo = mid;
       else hi = mid;
     }
     return lo;
-  }
+  };
 
-  function fromScreen(x, y) {
-    var t = state.tMin + ((x - plot.x0) / (plot.x1 - plot.x0)) * (state.tMax - state.tMin);
+  const fromScreen = (x, y) => {
+    let t = state.tMin + ((x - plot.x0) / (plot.x1 - plot.x0)) * (state.tMax - state.tMin);
     t = clamp(t, state.tMin, state.tMax);
-    var target = clamp((plot.y1 - y) / (plot.y1 - plot.y0), 0, 1);
-    var wTop = wTopAt(t);
+    const target = clamp((plot.y1 - y) / (plot.y1 - plot.y0), 0, 1);
+    const wTop = wTopAt(t);
     if (target <= 0) return { t: t, w: 0 };
     if (target >= yFraction(t, wTop)) return { t: t, w: wTop };
-    var lo = 0;
-    var hi = wTop;
-    for (var i = 0; i < 40; i++) {
-      var mid = (lo + hi) / 2;
+    let lo = 0;
+    let hi = wTop;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
       if (yFraction(t, mid) < target) lo = mid;
       else hi = mid;
     }
     return { t: t, w: (lo + hi) / 2 };
-  }
+  };
 
-  function densify(pts, maxDt, maxDw) {
+  const densify = (pts, maxDt, maxDw) => {
     maxDt = maxDt || 0.25;
     maxDw = maxDw || 0.0004;
-    var out = [];
-    for (var i = 0; i < pts.length; i++) {
+    const out = [];
+    for (let i = 0; i < pts.length; i++) {
       if (i > 0) {
-        var a = pts[i - 1];
-        var b = pts[i];
-        var n = Math.ceil(Math.max(Math.abs(b[0] - a[0]) / maxDt, Math.abs(b[1] - a[1]) / maxDw));
-        for (var k = 1; k < n; k++) {
-          var f = k / n;
+        const a = pts[i - 1];
+        const b = pts[i];
+        const n = Math.ceil(Math.max(Math.abs(b[0] - a[0]) / maxDt, Math.abs(b[1] - a[1]) / maxDw));
+        for (let k = 1; k < n; k++) {
+          const f = k / n;
           out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
         }
       }
       out.push(pts[i]);
     }
     return out;
-  }
+  };
 
-  function insidePlot(p, pad) {
+  const insidePlot = (p, pad) => {
     pad = pad || 0.5;
     return p[0] >= plot.x0 - pad && p[0] <= plot.x1 + pad && p[1] >= plot.y0 - pad && p[1] <= plot.y1 + pad;
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* Line family construction                                          */
   /* ---------------------------------------------------------------- */
 
-  function sampleCurve(fn, tStart) {
-    var p = state.pressure;
-    var segments = [];
-    var t0 = Math.max(state.tMin, tStart === undefined ? state.tMin : tStart);
-    var t1 = state.tMax;
+  const sampleCurve = (fn, tStart) => {
+    const p = state.pressure;
+    const segments = [];
+    const t0 = Math.max(state.tMin, tStart === undefined ? state.tMin : tStart);
+    const t1 = state.tMax;
     if (t0 >= t1) return segments;
 
-    function valid(t) {
-      var w = fn(t);
+    const valid = (t) => {
+      const w = fn(t);
       return Number.isFinite(w) && w >= -1e-12 && w <= P.wSat(t, p) * (1 + 1e-9);
-    }
+    };
 
-    function boundary(ta, tb) {
-      var va = valid(ta);
-      var a = ta;
-      var b = tb;
-      for (var i = 0; i < 30; i++) {
-        var m = (a + b) / 2;
+    const boundary = (ta, tb) => {
+      const va = valid(ta);
+      let a = ta;
+      let b = tb;
+      for (let i = 0; i < 30; i++) {
+        const m = (a + b) / 2;
         if (valid(m) === va) a = m;
         else b = m;
       }
-      var t = va ? a : b;
+      const t = va ? a : b;
       return [t, clamp(fn(t), 0, P.wSat(t, p))];
-    }
+    };
 
-    var step = 0.25;
-    var n = Math.ceil((t1 - t0) / step);
-    var current = null;
-    var prevT = null;
-    var prevValid = false;
-    for (var i = 0; i <= n; i++) {
-      var t = Math.min(t0 + i * step, t1);
-      var v = valid(t);
+    const step = 0.25;
+    const n = Math.ceil((t1 - t0) / step);
+    let current = null;
+    let prevT = null;
+    let prevValid = false;
+    for (let i = 0; i <= n; i++) {
+      const t = Math.min(t0 + i * step, t1);
+      const v = valid(t);
       if (v) {
         if (!current) {
           current = [];
@@ -208,10 +204,10 @@
     }
     if (current && current.length > 1) segments.push(current);
     return segments;
-  }
+  };
 
-  function addLines(family, value, segments, major, label, anchor) {
-    segments.forEach(function (pts, idx) {
+  const addLines = (family, value, segments, major, label, anchor) => {
+    segments.forEach((pts, idx) => {
       family.lines.push({
         value: value,
         pts: pts,
@@ -220,125 +216,121 @@
         anchor: anchor
       });
     });
-  }
+  };
 
-  function buildFamilies() {
-    var p = state.pressure;
-    var fam = {};
-    FAMILIES.forEach(function (f) {
+  const buildFamilies = () => {
+    const p = state.pressure;
+    const fam = {};
+    FAMILIES.forEach((f) => {
       f.lines = [];
       fam[f.id] = f;
     });
 
-    for (var t = Math.ceil(state.tMin); t <= Math.floor(state.tMax); t++) {
+    for (let t = Math.ceil(state.tMin); t <= Math.floor(state.tMax); t++) {
       fam.dbt.lines.push({ value: t, pts: [[t, 0], [t, P.wSat(t, p)]], major: t % 5 === 0, label: null });
     }
 
-    for (var r = 10; r <= 100; r += 10) {
-      (function (rh) {
-        addLines(fam.rh, rh, sampleCurve(function (tt) { return P.wFromRh(tt, rh / 100, p); }), true, rh + '%', 'rh');
+    for (let r = 10; r <= 100; r += 10) {
+      ((rh) => {
+        addLines(fam.rh, rh, sampleCurve((tt) => P.wFromRh(tt, rh / 100, p)), true, rh + '%', 'rh');
       })(r);
     }
 
-    var labelEvery = state.wMax > 32 ? 5 : state.wMax > 16 ? 2 : 1;
-    for (var g = 1; g <= state.wMax; g++) {
-      (function (gw) {
-        addLines(fam.w, gw, sampleCurve(function () { return gw / 1000; }), gw % 5 === 0, gw % labelEvery === 0 ? String(gw) : null, 'right');
+    const labelEvery = state.wMax > 32 ? 5 : state.wMax > 16 ? 2 : 1;
+    for (let g = 1; g <= state.wMax; g++) {
+      ((gw) => {
+        addLines(fam.w, gw, sampleCurve(() => gw / 1000), gw % 5 === 0, gw % labelEvery === 0 ? String(gw) : null, 'right');
       })(g);
     }
 
-    for (var twb = Math.ceil(state.tMin); twb <= state.tMax; twb++) {
-      (function (tw) {
-        var major = tw % 5 === 0;
-        addLines(fam.wbt, tw, sampleCurve(function (tt) { return P.wFromWetBulb(tt, tw, p); }, tw), major, major ? tw + '°' : null, 'start');
+    for (let twb = Math.ceil(state.tMin); twb <= state.tMax; twb++) {
+      ((tw) => {
+        const major = tw % 5 === 0;
+        addLines(fam.wbt, tw, sampleCurve((tt) => P.wFromWetBulb(tt, tw, p), tw), major, major ? tw + '°' : null, 'start');
       })(twb);
     }
 
-    var pvMax = P.saturationPressure(state.tMax) / 1000;
-    for (var pv = 0.5; pv <= pvMax; pv += 0.5) {
-      (function (kpa) {
-        var major = Math.abs(kpa - Math.round(kpa)) < 1e-6;
-        addLines(fam.pv, kpa, sampleCurve(function () { return P.wFromPw(kpa * 1000, p); }), major, major ? kpa.toFixed(1) + ' kPa' : null, 'endInside');
+    const pvMax = P.saturationPressure(state.tMax) / 1000;
+    for (let pv = 0.5; pv <= pvMax; pv += 0.5) {
+      ((kpa) => {
+        const major = Math.abs(kpa - Math.round(kpa)) < 1e-6;
+        addLines(fam.pv, kpa, sampleCurve(() => P.wFromPw(kpa * 1000, p)), major, major ? kpa.toFixed(1) + ' kPa' : null, 'endInside');
       })(pv);
     }
 
-    for (var vi = 70; vi <= 110; vi++) {
-      (function (vv) {
-        var v = vv / 100;
-        var major = vv % 5 === 0;
-        addLines(fam.v, v, sampleCurve(function (tt) { return P.wFromSpecificVolume(tt, v, p); }), major, vv % 2 === 0 ? v.toFixed(2) : null, 'end');
+    for (let vi = 70; vi <= 110; vi++) {
+      ((vv) => {
+        const v = vv / 100;
+        const major = vv % 5 === 0;
+        addLines(fam.v, v, sampleCurve((tt) => P.wFromSpecificVolume(tt, v, p)), major, vv % 2 === 0 ? v.toFixed(2) : null, 'end');
       })(vi);
     }
 
-    for (var h = -20; h <= 250; h += 5) {
-      (function (hh) {
-        var major = hh % 10 === 0;
-        addLines(fam.h, hh, sampleCurve(function (tt) { return P.wFromEnthalpy(tt, hh); }), major, major ? String(hh) : null, 'start');
+    for (let h = -20; h <= 250; h += 5) {
+      ((hh) => {
+        const major = hh % 10 === 0;
+        addLines(fam.h, hh, sampleCurve((tt) => P.wFromEnthalpy(tt, hh)), major, major ? String(hh) : null, 'start');
       })(h);
     }
 
-    var sat = [];
-    for (var ts = state.tMin; ts <= state.tMax + 1e-9; ts += 0.25) sat.push([ts, P.wSat(ts, p)]);
+    const sat = [];
+    for (let ts = state.tMin; ts <= state.tMax + 1e-9; ts += 0.25) sat.push([ts, P.wSat(ts, p)]);
     cache.saturation = sat;
     cache.valid = sat.concat([[state.tMax, 0], [state.tMin, 0]]);
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* Comfort zones                                                     */
   /* ---------------------------------------------------------------- */
 
-  function pmvAt(t, w) {
-    return C.pmv(t, t + state.mrtOffset, state.vel, P.pwFromW(w, state.pressure), state.met, state.clo);
-  }
+  const pmvAt = (t, w) => C.pmv(t, t + state.mrtOffset, state.vel, P.pwFromW(w, state.pressure), state.met, state.clo);
 
-  function solveT(w, target) {
-    var lo = -10;
-    var hi = 50;
-    var pa = P.pwFromW(w, state.pressure);
-    function f(t) {
-      return C.pmv(t, t + state.mrtOffset, state.vel, pa, state.met, state.clo).pmv;
-    }
+  const solveT = (w, target) => {
+    let lo = -10;
+    let hi = 50;
+    const pa = P.pwFromW(w, state.pressure);
+    const f = (t) => C.pmv(t, t + state.mrtOffset, state.vel, pa, state.met, state.clo).pmv;
     if (f(lo) > target) return lo;
     if (f(hi) < target) return hi;
-    for (var i = 0; i < 36; i++) {
-      var m = (lo + hi) / 2;
-      var v = f(m);
+    for (let i = 0; i < 36; i++) {
+      const m = (lo + hi) / 2;
+      const v = f(m);
       if (!Number.isFinite(v) || v < target) lo = m;
       else hi = m;
     }
     return (lo + hi) / 2;
-  }
+  };
 
-  function saturationBetween(tFrom, tTo) {
-    var out = [];
-    var step = tFrom < tTo ? 0.25 : -0.25;
-    for (var t = tFrom; step > 0 ? t <= tTo : t >= tTo; t += step) out.push([t, P.wSat(t, state.pressure)]);
+  const saturationBetween = (tFrom, tTo) => {
+    const out = [];
+    const step = tFrom < tTo ? 0.25 : -0.25;
+    for (let t = tFrom; step > 0 ? t <= tTo : t >= tTo; t += step) out.push([t, P.wSat(t, state.pressure)]);
     out.push([tTo, P.wSat(tTo, state.pressure)]);
     return out;
-  }
+  };
 
-  function bandPolygon(lo, hi) {
+  const bandPolygon = (lo, hi) => {
     lo = Math.max(lo, state.tMin);
     hi = Math.min(hi, state.tMax);
     if (hi <= lo) return null;
     return [[lo, 0], [hi, 0]].concat(saturationBetween(hi, lo));
-  }
+  };
 
-  function buildComfort() {
+  const buildComfort = () => {
     syncTout();
-    var zones = [];
-    var note = '';
+    const zones = [];
+    let note = '';
     if (state.comfort === 'pmv') {
-      [0.7, 0.5, 0.2].forEach(function (level, idx) {
-        var left = [];
-        var right = [];
-        var rows = 90;
-        var wTop = state.wMax / 1000;
-        for (var i = 0; i <= rows; i++) {
-          var w = (wTop * i) / rows;
-          var tLo = solveT(w, -level);
-          var tHi = solveT(w, level);
-          var lo = Math.max(tLo, P.dewPoint(tHi, w, state.pressure));
+      [0.7, 0.5, 0.2].forEach((level, idx) => {
+        const left = [];
+        const right = [];
+        const rows = 90;
+        const wTop = state.wMax / 1000;
+        for (let i = 0; i <= rows; i++) {
+          const w = (wTop * i) / rows;
+          const tLo = solveT(w, -level);
+          const tHi = solveT(w, level);
+          const lo = Math.max(tLo, P.dewPoint(tHi, w, state.pressure));
           if (!(lo < tHi)) {
             if (left.length) break;
             continue;
@@ -356,10 +348,10 @@
       });
       note = 'Shaded bands show |PMV| ≤ 0.7, 0.5 and 0.2 (ISO 7730 categories III, II, I). Mean radiant temperature = air temperature + radiant offset.';
     } else if (state.comfort === 'adaptive') {
-      var tOut = effectiveTOut();
-      var a = C.adaptive(tOut);
-      var z80 = bandPolygon(a.limits80[0], a.limits80[1]);
-      var z90 = bandPolygon(a.limits90[0], a.limits90[1]);
+      const tOut = effectiveTOut();
+      const a = C.adaptive(tOut);
+      const z80 = bandPolygon(a.limits80[0], a.limits80[1]);
+      const z90 = bandPolygon(a.limits90[0], a.limits90[1]);
       if (z80) zones.push({ poly: z80, alpha: 0.16, label: '80% acceptability' });
       if (z90) zones.push({ poly: z90, alpha: 0.24, label: '90% acceptability' });
       note =
@@ -367,102 +359,100 @@
         (a.applicable ? '' : ' Outside the 10–33.5 °C range of applicability, limits are clamped.');
     } else if (state.comfort === 'givoni') {
       G.setMeanOutdoor(effectiveTOut());
-      G.zones.forEach(function (gz) {
+      G.zones.forEach((gz) => {
         if (!gz.show) return;
-        var poly = G.polygon(gz, state.pressure);
+        const poly = G.polygon(gz, state.pressure);
         // Keep corners inside the chart: at low pressure (altitude) the saturation curve rises above the top edge.
-        var wCap = state.wMax / 1000;
-        if (poly) zones.push({ poly: poly.map(function (v) { return [v[0], Math.min(v[1], wCap)]; }), zone: gz, label: gz.name });
+        const wCap = state.wMax / 1000;
+        if (poly) zones.push({ poly: poly.map((v) => [v[0], Math.min(v[1], wCap)]), zone: gz, label: gz.name });
       });
       note = 'Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. All zones shift with the mean outdoor temperature (' + effectiveTOut().toFixed(1) + ' °C here); limits are editable in js/givoni.js.';
     }
-    cache.comfort = zones.map(function (z) {
+    cache.comfort = zones.map((z) => {
       if (z.zone) z.tail = densify([z.poly[z.poly.length - 1], z.poly[0]], 0.25, 0.0004);
       z.poly = densify(z.poly, 0.25, 0.0004);
       return z;
     });
     $('comfort-note').textContent = note;
-  }
+  };
 
-  function inComfort(t, w) {
+  const inComfort = (t, w) => {
     if (state.comfort === 'pmv') {
       return Math.abs(pmvAt(t, w).pmv) <= 0.5;
     }
     if (state.comfort === 'adaptive') {
-      var a = C.adaptive(effectiveTOut());
+      const a = C.adaptive(effectiveTOut());
       return t >= a.limits80[0] && t <= a.limits80[1];
     }
     if (state.comfort === 'givoni') {
       return G.contains(G.zones[G.zones.length - 1], t, w, state.pressure);
     }
     return false;
-  }
+  };
 
   // When "From weather data" is on, show the mean temperature actually used in the text box.
-  function syncTout() {
+  const syncTout = () => {
     if (state.tOutAuto && state.data) $('tout').value = effectiveTOut().toFixed(1);
-  }
+  };
 
-  function effectiveTOut() {
+  const effectiveTOut = () => {
     if (state.tOutAuto && state.data) {
-      var rows = filteredData();
+      const rows = filteredData();
       if (rows.length) {
-        var sum = 0;
-        for (var i = 0; i < rows.length; i++) sum += rows[i].t;
+        let sum = 0;
+        for (let i = 0; i < rows.length; i++) sum += rows[i].t;
         return sum / rows.length;
       }
     }
     return state.tOut;
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* Weather data                                                      */
   /* ---------------------------------------------------------------- */
 
-  function filteredData() {
+  const filteredData = () => {
     if (!state.data) return [];
     if (!state.month) return state.data;
-    return state.data.filter(function (d) {
-      return d.month === state.month;
-    });
-  }
+    return state.data.filter((d) => d.month === state.month);
+  };
 
-  var RH_STEP = 2; // RH chart cells: 1 °C wide, 2 % RH tall
+  const RH_STEP = 2; // RH chart cells: 1 °C wide, 2 % RH tall
 
-  function buildData() {
+  const buildData = () => {
     syncTout();
     if (state.comfort === 'givoni') G.setMeanOutdoor(effectiveTOut());
     cache.bins = null;
     cache.rhBins = null;
     cache.stats = null;
     if (!state.data) return;
-    var rows = filteredData();
-    var bins = {};
-    var rhBins = {};
-    var rhMax = 0;
-    var max = 0;
-    var comfortHours = 0;
-    var strategyHours = {};
-    var p = state.pressure;
-    for (var i = 0; i < rows.length; i++) {
-      var d = rows[i];
-      var w = P.wFromRh(d.t, d.rh, p);
+    const rows = filteredData();
+    const bins = {};
+    const rhBins = {};
+    let rhMax = 0;
+    let max = 0;
+    let comfortHours = 0;
+    const strategyHours = {};
+    const p = state.pressure;
+    for (let i = 0; i < rows.length; i++) {
+      const d = rows[i];
+      const w = P.wFromRh(d.t, d.rh, p);
       d.w = w;
       if (state.comfort === 'givoni') {
-        G.classify(d.t, w, p).forEach(function (z) {
+        G.classify(d.t, w, p).forEach((z) => {
           strategyHours[z.name] = (strategyHours[z.name] || 0) + 1;
         });
         if (strategyHours.Comfort && G.contains(G.zones[G.zones.length - 1], d.t, w, p)) comfortHours++;
       } else if (state.comfort !== 'none' && inComfort(d.t, w)) comfortHours++;
-      var bx = Math.floor(d.t);
-      var by = Math.floor(w * 1000);
+      const bx = Math.floor(d.t);
+      const by = Math.floor(w * 1000);
       if (d.t >= state.tMin && d.t <= state.tMax) { // same data binned by RH for the RH chart
-        var rkey = bx + ':' + Math.min(Math.floor((d.rh * 100) / RH_STEP), 100 / RH_STEP - 1);
+        const rkey = bx + ':' + Math.min(Math.floor((d.rh * 100) / RH_STEP), 100 / RH_STEP - 1);
         rhBins[rkey] = (rhBins[rkey] || 0) + 1;
         if (rhBins[rkey] > rhMax) rhMax = rhBins[rkey];
       }
       if (d.t < state.tMin || d.t > state.tMax || by >= state.wMax) continue;
-      var key = bx + ':' + by;
+      const key = bx + ':' + by;
       bins[key] = (bins[key] || 0) + 1;
       if (bins[key] > max) max = bins[key];
     }
@@ -472,20 +462,20 @@
     cache.rhBinMax = rhMax;
     cache.stats = { total: rows.length, comfort: comfortHours };
 
-    var period = state.month ? MONTHS[state.month] : 'full year';
-    var text = rows.length + ' hourly records (' + period + '). Darkest cell: ' + max + ' h.';
-    var stats = $('data-stats');
+    const period = state.month ? MONTHS[state.month] : 'full year';
+    let text = rows.length + ' hourly records (' + period + '). Darkest cell: ' + max + ' h.';
+    const stats = $('data-stats');
     if (state.comfort === 'givoni' && rows.length) {
       stats.textContent = text + ' Hours where each strategy is effective (zones overlap, so totals exceed 100%):';
-      var ul = document.createElement('ul');
+      const ul = document.createElement('ul');
       ul.className = 'strategy-stats';
       Object.keys(strategyHours)
-        .sort(function (a, b) { return strategyHours[b] - strategyHours[a]; })
-        .forEach(function (name) {
-          var li = document.createElement('li');
-          var label = document.createElement('span');
+        .sort((a, b) => strategyHours[b] - strategyHours[a])
+        .forEach((name) => {
+          const li = document.createElement('li');
+          const label = document.createElement('span');
           label.textContent = name;
-          var val = document.createElement('span');
+          const val = document.createElement('span');
           val.textContent = ((strategyHours[name] / rows.length) * 100).toFixed(1) + '%';
           li.appendChild(label);
           li.appendChild(val);
@@ -499,15 +489,15 @@
         (state.comfort === 'pmv' ? 'PMV ±0.5' : 'adaptive 80%') + ' comfort zone.';
     }
     stats.textContent = text;
-  }
+  };
 
-  function parseWeather(text, fileName) {
-    var lines = text.split(/\r?\n/);
-    var rows = [];
-    var station = null;
+  const parseWeather = (text, fileName) => {
+    const lines = text.split(/\r?\n/);
+    const rows = [];
+    let station = null;
 
     if (/^LOCATION/i.test(lines[0])) {
-      var loc = lines[0].split(',');
+      const loc = lines[0].split(',');
       station = {
         name: loc[1],
         region: loc[2],
@@ -518,39 +508,39 @@
         timezone: parseFloat(loc[8]),
         elevation: parseFloat(loc[9])
       };
-      for (var i = 8; i < lines.length; i++) {
-        var f = lines[i].split(',');
+      for (let i = 8; i < lines.length; i++) {
+        const f = lines[i].split(',');
         if (f.length < 10) continue;
-        var t = parseFloat(f[6]);
-        var rh = parseFloat(f[8]);
+        const t = parseFloat(f[6]);
+        const rh = parseFloat(f[8]);
         if (!Number.isFinite(t) || !Number.isFinite(rh) || t >= 99.9 || rh > 100 || rh < 0) continue;
         rows.push({ month: parseInt(f[1], 10), t: t, rh: rh / 100 });
       }
     } else {
-      var header = lines[0].split(/[,;\t]/).map(function (s) { return s.trim().toLowerCase(); });
-      var hasHeader = header.some(function (s) { return /[a-z]/.test(s); });
-      var ti = 0;
-      var ri = 1;
-      var mi = -1;
+      const header = lines[0].split(/[,;\t]/).map((s) => s.trim().toLowerCase());
+      const hasHeader = header.some((s) => /[a-z]/.test(s));
+      let ti = 0;
+      let ri = 1;
+      let mi = -1;
       if (hasHeader) {
-        ti = header.findIndex(function (s) { return /dry.?bulb|drybulb|temp/.test(s); });
-        ri = header.findIndex(function (s) { return /relative.?humid|\brh\b|humidity/.test(s); });
-        mi = header.findIndex(function (s) { return /^month$|\bmonth\b/.test(s); });
+        ti = header.findIndex((s) => /dry.?bulb|drybulb|temp/.test(s));
+        ri = header.findIndex((s) => /relative.?humid|\brh\b|humidity/.test(s));
+        mi = header.findIndex((s) => /^month$|\bmonth\b/.test(s));
         if (ti < 0) ti = 0;
         if (ri < 0) ri = 1;
       }
-      var maxRh = 0;
-      for (var j = hasHeader ? 1 : 0; j < lines.length; j++) {
-        var c = lines[j].split(/[,;\t]/);
+      let maxRh = 0;
+      for (let j = hasHeader ? 1 : 0; j < lines.length; j++) {
+        const c = lines[j].split(/[,;\t]/);
         if (c.length < 2) continue;
-        var tt = parseFloat(c[ti]);
-        var rr = parseFloat(c[ri]);
+        const tt = parseFloat(c[ti]);
+        const rr = parseFloat(c[ri]);
         if (!Number.isFinite(tt) || !Number.isFinite(rr)) continue;
         if (rr > maxRh) maxRh = rr;
         rows.push({ month: mi >= 0 ? parseInt(c[mi], 10) || 0 : 0, t: tt, rh: rr });
       }
-      var scale = maxRh > 1.5 ? 100 : 1;
-      rows.forEach(function (r) { r.rh = clamp(r.rh / scale, 0, 1); });
+      const scale = maxRh > 1.5 ? 100 : 1;
+      rows.forEach((r) => { r.rh = clamp(r.rh / scale, 0, 1); });
       station = { name: fileName };
     }
 
@@ -570,13 +560,13 @@
     }
 
     // Start from the default ranges (0-50 °C, 0-35 g/kg) and widen only as far as the data needs.
-    var tLo = Infinity;
-    var tHi = -Infinity;
-    var wHi = 0;
-    rows.forEach(function (r) {
+    let tLo = Infinity;
+    let tHi = -Infinity;
+    let wHi = 0;
+    rows.forEach((r) => {
       if (r.t < tLo) tLo = r.t;
       if (r.t > tHi) tHi = r.t;
-      var wg = P.wFromRh(r.t, r.rh, state.pressure) * 1000;
+      const wg = P.wFromRh(r.t, r.rh, state.pressure) * 1000;
       if (wg > wHi) wHi = wg;
     });
     state.tMin = Math.min(0, clamp(Math.floor(tLo / 5) * 5, -40, 60));
@@ -591,14 +581,14 @@
     renderStation();
     $('station').hidden = false;
     rebuild();
-  }
+  };
 
-  function renderStation() {
-    var s = state.station;
-    var dl = $('station-info');
+  const renderStation = () => {
+    const s = state.station;
+    const dl = $('station-info');
     dl.textContent = '';
     if (!s) return;
-    var entries = [
+    const entries = [
       ['Name', s.name],
       ['Region', s.region],
       ['Country', s.country],
@@ -608,72 +598,72 @@
       ['Timezone', Number.isFinite(s.timezone) ? 'UTC' + (s.timezone >= 0 ? '+' : '') + s.timezone : null],
       ['Elevation', Number.isFinite(s.elevation) ? s.elevation + ' m' : null]
     ];
-    entries.forEach(function (e) {
+    entries.forEach((e) => {
       if (e[1] === undefined || e[1] === null || e[1] === '') return;
-      var dt = document.createElement('dt');
+      const dt = document.createElement('dt');
       dt.textContent = e[0];
-      var dd = document.createElement('dd');
+      const dd = document.createElement('dd');
       dd.textContent = e[1];
       dl.appendChild(dt);
       dl.appendChild(dd);
     });
-  }
+  };
 
-  function loadFile(file) {
-    var reader = new FileReader();
-    reader.onload = function () {
+  const loadFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
       parseWeather(String(reader.result), file.name);
     };
     reader.readAsText(file);
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* Rendering                                                         */
   /* ---------------------------------------------------------------- */
 
-  function pathFrom(pts) {
+  const pathFrom = (pts) => {
     ctx.beginPath();
-    for (var i = 0; i < pts.length; i++) {
-      var s = toScreen(pts[i][0], pts[i][1]);
+    for (let i = 0; i < pts.length; i++) {
+      const s = toScreen(pts[i][0], pts[i][1]);
       if (i === 0) ctx.moveTo(s[0], s[1]);
       else ctx.lineTo(s[0], s[1]);
     }
-  }
+  };
 
-  function screenPts(pts) {
-    var out = new Array(pts.length);
-    for (var i = 0; i < pts.length; i++) out[i] = toScreen(pts[i][0], pts[i][1]);
+  const screenPts = (pts) => {
+    const out = new Array(pts.length);
+    for (let i = 0; i < pts.length; i++) out[i] = toScreen(pts[i][0], pts[i][1]);
     return out;
-  }
+  };
 
-  function haloText(text, x, y, color, bold) {
+  const haloText = (text, x, y, color, bold) => {
     ctx.font = (bold ? '600 ' : '') + '10px ' + getComputedStyle(document.body).fontFamily;
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(255,255,255,0.92)';
     ctx.strokeText(text, x, y);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
-  }
+  };
 
-  function clipPlot() {
+  const clipPlot = () => {
     ctx.beginPath();
     ctx.rect(plot.x0, plot.y0, plot.x1 - plot.x0, plot.y1 - plot.y0);
     ctx.clip();
-  }
+  };
 
-  function drawFamilies() {
-    var hl = state.highlight;
-    var order = FAMILIES.filter(function (f) { return f.show && f.id !== hl; });
-    var hlFam = FAMILIES.find(function (f) { return f.id === hl && f.show; });
+  const drawFamilies = () => {
+    const hl = state.highlight;
+    const order = FAMILIES.filter((f) => f.show && f.id !== hl);
+    const hlFam = FAMILIES.find((f) => f.id === hl && f.show);
     if (hlFam) order.push(hlFam);
 
-    order.forEach(function (fam) {
-      var isHl = fam.id === hl;
+    order.forEach((fam) => {
+      const isHl = fam.id === hl;
       ctx.globalAlpha = hl && !isHl ? 0.4 : 1;
-      fam.lines.forEach(function (line) {
+      fam.lines.forEach((line) => {
         line._s = screenPts(line.pts);
         ctx.beginPath();
-        for (var i = 0; i < line._s.length; i++) {
+        for (let i = 0; i < line._s.length; i++) {
           if (i === 0) ctx.moveTo(line._s[i][0], line._s[i][1]);
           else ctx.lineTo(line._s[i][0], line._s[i][1]);
         }
@@ -692,57 +682,57 @@
       });
     });
     ctx.globalAlpha = 1;
-  }
+  };
 
   // Where an RH line leaves the plot: the crossing point with the top or right edge, and which edge it was.
-  function rhExit(s) {
-    for (var i = s.length - 1; i >= 0; i--) {
+  const rhExit = (s) => {
+    for (let i = s.length - 1; i >= 0; i--) {
       if (!insidePlot(s[i])) continue;
-      var p0 = s[i];
-      var p1 = s[i + 1];
+      const p0 = s[i];
+      const p1 = s[i + 1];
       if (!p1) return { x: p0[0], y: p0[1], top: false };
-      var fx = p1[0] > plot.x1 ? (plot.x1 - p0[0]) / (p1[0] - p0[0]) : 1;
-      var fy = p1[1] < plot.y0 ? (plot.y0 - p0[1]) / (p1[1] - p0[1]) : 1;
-      var f = Math.min(fx, fy);
+      const fx = p1[0] > plot.x1 ? (plot.x1 - p0[0]) / (p1[0] - p0[0]) : 1;
+      const fy = p1[1] < plot.y0 ? (plot.y0 - p0[1]) / (p1[1] - p0[1]) : 1;
+      const f = Math.min(fx, fy);
       return { x: p0[0] + f * (p1[0] - p0[0]), y: p0[1] + f * (p1[1] - p0[1]), top: fy < fx };
     }
     return { x: s[0][0], y: s[0][1], top: false };
-  }
+  };
 
-  function drawFamilyLabels() {
-    var hl = state.highlight;
+  const drawFamilyLabels = () => {
+    const hl = state.highlight;
     ctx.textBaseline = 'middle';
-    FAMILIES.forEach(function (fam) {
+    FAMILIES.forEach((fam) => {
       if (!fam.show || fam.id === 'dbt') return;
-      var isHl = fam.id === hl;
-      var color = isHl ? COLORS.accent : COLORS.muted;
-      var baseAlpha = hl && !isHl ? 0.5 : 1;
-      var placed = [];
-      fam.lines.forEach(function (line) {
+      const isHl = fam.id === hl;
+      const color = isHl ? COLORS.accent : COLORS.muted;
+      const baseAlpha = hl && !isHl ? 0.5 : 1;
+      const placed = [];
+      fam.lines.forEach((line) => {
         ctx.globalAlpha = baseAlpha * (line.anchor === 'right' ? 1 - state.morph : line.anchor === 'rh' ? Math.abs(1 - 2 * state.morph) : 1);
         if (ctx.globalAlpha <= 0.02) return;
         if (!line.label || !line._s) return;
-        var s = line._s;
-        var anchor = null;
-        var i;
+        const s = line._s;
+        let anchor = null;
+        let i;
         if (line.anchor === 'start') {
           for (i = 0; i < s.length; i++) if (insidePlot(s[i])) { anchor = s[i]; break; }
         } else {
           for (i = s.length - 1; i >= 0; i--) if (insidePlot(s[i])) { anchor = s[i]; break; }
         }
         if (!anchor) return;
-        var x = anchor[0];
-        var y = anchor[1];
-        var lx;
-        var ly;
-        var align;
+        const x = anchor[0];
+        const y = anchor[1];
+        let lx;
+        let ly;
+        let align;
         if (line.anchor === 'right') {
           if (x < plot.x1 - 2) return;
           align = 'left';
           lx = plot.x1 + 6;
           ly = y;
         } else if (line.anchor === 'rh') {
-          var ex = rhExit(s);
+          const ex = rhExit(s);
           if (state.morph > 0.5) { // RH chart: label outside, on the right axis only
             align = 'left';
             lx = plot.x1 + 6;
@@ -770,12 +760,10 @@
           ly = y - 7;
         }
         ctx.font = (isHl ? '600 ' : '') + '10px ' + getComputedStyle(document.body).fontFamily;
-        var width = ctx.measureText(line.label).width + 4;
-        var left = align === 'right' ? lx - width : align === 'center' ? lx - width / 2 : lx;
-        var slack = line.anchor === 'rh' ? 6 : 0; // neighbouring RH labels along the top may overlap slightly
-        var collides = placed.some(function (b) {
-          return left < b.x + b.w - slack && left + width > b.x + slack && Math.abs(ly - b.y) < 11;
-        });
+        const width = ctx.measureText(line.label).width + 4;
+        const left = align === 'right' ? lx - width : align === 'center' ? lx - width / 2 : lx;
+        const slack = line.anchor === 'rh' ? 6 : 0; // neighbouring RH labels along the top may overlap slightly
+        const collides = placed.some((b) => left < b.x + b.w - slack && left + width > b.x + slack && Math.abs(ly - b.y) < 11);
         if (collides) return;
         placed.push({ x: left, y: ly, w: width });
         ctx.textAlign = align;
@@ -783,54 +771,54 @@
       });
       ctx.globalAlpha = 1;
     });
-  }
+  };
 
-  function drawData() {
+  const drawData = () => {
     if (!state.showData) return;
     drawBins(cache.bins, cache.binMax, false, Math.max(0, 1 - 2 * state.morph));   // psychrometric chart cells (1 °C x 1 g/kg)
     drawBins(cache.rhBins, cache.rhBinMax, true, Math.max(0, 2 * state.morph - 1)); // RH chart cells (1 °C x 5 % RH): true rectangles
-  }
+  };
 
   // Shrink a convex quadrilateral (screen points) by m pixels on every side, so neighbouring cells leave a small gap.
-  function insetQuad(q, m) {
-    var cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4;
-    var cy = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
-    var lines = [];
-    for (var i = 0; i < 4; i++) {
-      var p = q[i];
-      var r = q[(i + 1) % 4];
-      var dx = r[0] - p[0];
-      var dy = r[1] - p[1];
-      var len = Math.hypot(dx, dy) || 1;
-      var nx = -dy / len;
-      var ny = dx / len;
+  const insetQuad = (q, m) => {
+    const cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4;
+    const cy = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
+    const lines = [];
+    for (let i = 0; i < 4; i++) {
+      const p = q[i];
+      const r = q[(i + 1) % 4];
+      const dx = r[0] - p[0];
+      const dy = r[1] - p[1];
+      const len = Math.hypot(dx, dy) || 1;
+      let nx = -dy / len;
+      let ny = dx / len;
       if ((cx - p[0]) * nx + (cy - p[1]) * ny < 0) { nx = -nx; ny = -ny; } // normal pointing into the cell
       lines.push({ px: p[0] + nx * m, py: p[1] + ny * m, dx: dx, dy: dy });
     }
-    var out = [];
-    for (var k = 0; k < 4; k++) { // corner k = where the offset edges k-1 and k meet
-      var l1 = lines[(k + 3) % 4];
-      var l2 = lines[k];
-      var det = l1.dx * l2.dy - l1.dy * l2.dx;
+    const out = [];
+    for (let k = 0; k < 4; k++) { // corner k = where the offset edges k-1 and k meet
+      const l1 = lines[(k + 3) % 4];
+      const l2 = lines[k];
+      const det = l1.dx * l2.dy - l1.dy * l2.dx;
       if (Math.abs(det) < 1e-9) { out.push([l2.px, l2.py]); continue; }
-      var t = ((l2.px - l1.px) * l2.dy - (l2.py - l1.py) * l2.dx) / det;
+      const t = ((l2.px - l1.px) * l2.dy - (l2.py - l1.py) * l2.dx) / det;
       out.push([l1.px + t * l1.dx, l1.py + t * l1.dy]);
     }
     return out;
-  }
+  };
 
-  function drawBins(bins, max, isRh, fade) {
+  const drawBins = (bins, max, isRh, fade) => {
     if (!bins || fade <= 0) return;
     max = max || 1;
-    var p = state.pressure;
-    Object.keys(bins).forEach(function (key) {
-      var parts = key.split(':');
-      var t = Number(parts[0]);
-      var g = Number(parts[1]);
-      var a, b, c, d;
+    const p = state.pressure;
+    Object.keys(bins).forEach((key) => {
+      const parts = key.split(':');
+      const t = Number(parts[0]);
+      const g = Number(parts[1]);
+      let a, b, c, d;
       if (isRh) {
-        var r0 = (g * RH_STEP) / 100;
-        var r1 = ((g + 1) * RH_STEP) / 100;
+        const r0 = (g * RH_STEP) / 100;
+        const r1 = ((g + 1) * RH_STEP) / 100;
         a = toScreen(t, P.wFromRh(t, r0, p));
         b = toScreen(t + 1, P.wFromRh(t + 1, r0, p));
         c = toScreen(t + 1, P.wFromRh(t + 1, r1, p));
@@ -841,12 +829,12 @@
         c = toScreen(t + 1, (g + 1) / 1000);
         d = toScreen(t, (g + 1) / 1000);
       }
-      var intensity = Math.sqrt(bins[key] / max);
+      const intensity = Math.sqrt(bins[key] / max);
       ctx.fillStyle = 'rgba(' + COLORS.dataRgb + ',' + ((0.12 + intensity * 0.78) * fade).toFixed(3) + ')';
-      var cw = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      var ch = Math.hypot(d[0] - a[0], d[1] - a[1]);
-      var margin = Math.min(2, 0.15 * Math.min(cw, ch)); // up to 2 px; smaller for tiny cells
-      var q = margin >= 0.3 ? insetQuad([a, b, c, d], margin) : [a, b, c, d];
+      const cw = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const ch = Math.hypot(d[0] - a[0], d[1] - a[1]);
+      const margin = Math.min(2, 0.15 * Math.min(cw, ch)); // up to 2 px; smaller for tiny cells
+      const q = margin >= 0.3 ? insetQuad([a, b, c, d], margin) : [a, b, c, d];
       ctx.beginPath();
       ctx.moveTo(q[0][0], q[0][1]);
       ctx.lineTo(q[1][0], q[1][1]);
@@ -855,12 +843,12 @@
       ctx.closePath();
       ctx.fill();
     });
-  }
+  };
 
 
-  function drawComfort() {
-    cache.comfort.forEach(function (z) {
-      var gz = z.zone;
+  const drawComfort = () => {
+    cache.comfort.forEach((z) => {
+      const gz = z.zone;
       if (gz) { // Givoni zone: fill only here (inside the clip); outlines are drawn by drawGivoniOutlines
         if (gz.fill) {
           pathFrom(z.poly);
@@ -876,7 +864,7 @@
         }
         return;
       }
-      var rgb = z.zone ? z.zone.rgb : COLORS.accentRgb;
+      const rgb = z.zone ? z.zone.rgb : COLORS.accentRgb;
       pathFrom(z.poly);
       ctx.closePath();
       ctx.fillStyle = 'rgba(' + rgb + ',' + (z.zone ? (z.zone.id === 'c' ? 0.3 : 0.1) : z.alpha) + ')';
@@ -885,19 +873,19 @@
       ctx.lineWidth = z.zone ? 1.4 : 1;
       ctx.stroke();
     });
-  }
+  };
 
   // Legend for the data cells: the same colour ramp as drawData(), from 1 hour to the busiest cell.
-  function drawDataLegend() {
-    var rhView = state.morph > 0.5;
-    var max = rhView ? cache.rhBinMax : cache.binMax;
+  const drawDataLegend = () => {
+    const rhView = state.morph > 0.5;
+    const max = rhView ? cache.rhBinMax : cache.binMax;
     if (!(rhView ? cache.rhBins : cache.bins) || !state.showData || !max) return;
-    var font = getComputedStyle(document.body).fontFamily;
-    var n = 6;
-    var sw = 22;
-    var w = n * sw;
-    var x0 = plot.x1 - w - 16;
-    var y0 = plot.y1 - 30;
+    const font = getComputedStyle(document.body).fontFamily;
+    const n = 6;
+    const sw = 22;
+    const w = n * sw;
+    const x0 = plot.x1 - w - 16;
+    const y0 = plot.y1 - 30;
     ctx.save();
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.fillRect(x0 - 8, y0 - 22, w + 16, 54);
@@ -906,8 +894,8 @@
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('Hours per cell', x0, y0 - 8);
-    for (var i = 0; i < n; i++) {
-      var v = 1 + ((max - 1) * i) / (n - 1);
+    for (let i = 0; i < n; i++) {
+      const v = 1 + ((max - 1) * i) / (n - 1);
       ctx.fillStyle = 'rgba(' + COLORS.dataRgb + ',' + (0.12 + Math.sqrt(v / max) * 0.78).toFixed(3) + ')';
       ctx.fillRect(x0 + i * sw, y0, sw, 10);
     }
@@ -920,15 +908,15 @@
     ctx.textAlign = 'right';
     ctx.fillText(String(max), x0 + w, y0 + 22);
     ctx.restore();
-  }
+  };
 
   // Zone outlines are drawn outside the plot clip so edges lying on the saturation curve or the W = 0 axis stay fully visible.
-  function drawGivoniOutlines() {
+  const drawGivoniOutlines = () => {
     ctx.save();
     ctx.strokeStyle = '#3b3f45';
     ctx.lineJoin = 'round';
-    cache.comfort.forEach(function (z) {
-      var gz = z.zone;
+    cache.comfort.forEach((z) => {
+      const gz = z.zone;
       if (!gz) return;
       ctx.setLineDash(gz.dash || []);
       ctx.lineWidth = hoverSet[gz.id] ? 3.6 : gz.width || 2.2;
@@ -944,83 +932,83 @@
       if (gz.extra) {
         ctx.setLineDash([2, 4]);
         ctx.lineWidth = 1.6;
-        gz.extra(state.pressure).forEach(function (seg) {
-          pathFrom(densify(seg.map(function (v) { return [v[0], Math.min(v[1], state.wMax / 1000)]; }), 0.25, 0.0004));
+        gz.extra(state.pressure).forEach((seg) => {
+          pathFrom(densify(seg.map((v) => [v[0], Math.min(v[1], state.wMax / 1000)]), 0.25, 0.0004));
           ctx.stroke();
         });
       }
     });
     ctx.restore();
-  }
+  };
 
   // Vertical centre (screen y) of a label's region at screen x: the span of its zone polygon, or of label.band.
-  function labelCenterY(zoneEntry, l, lt, x) {
-    var wTop = state.wMax / 1000;
+  const labelCenterY = (zoneEntry, l, lt, x) => {
+    const wTop = state.wMax / 1000;
     if (l.band) {
-      var bd = l.band(lt, state.pressure, wTop);
+      const bd = l.band(lt, state.pressure, wTop);
       return (toScreen(lt, Math.min(bd[0], wTop))[1] + toScreen(lt, Math.min(bd[1], wTop))[1]) / 2;
     }
     if (!zoneEntry) return null;
-    var s = screenPts(zoneEntry.poly);
-    var ys = [];
-    for (var i = 0; i < s.length; i++) {
-      var p = s[i];
-      var q = s[(i + 1) % s.length];
+    const s = screenPts(zoneEntry.poly);
+    const ys = [];
+    for (let i = 0; i < s.length; i++) {
+      const p = s[i];
+      const q = s[(i + 1) % s.length];
       if (p[0] <= x !== q[0] <= x) ys.push(p[1] + ((x - p[0]) * (q[1] - p[1])) / (q[0] - p[0]));
     }
     if (ys.length < 2) return null;
     return (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
-  }
+  };
 
-  function drawGivoniLabels() {
+  const drawGivoniLabels = () => {
     if (state.comfort !== 'givoni') return;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    var entries = {};
-    cache.comfort.forEach(function (z) { if (z.zone) entries[z.zone.id] = z; });
-    G.zones.forEach(function (gz) {
+    const entries = {};
+    cache.comfort.forEach((z) => { if (z.zone) entries[z.zone.id] = z; });
+    G.zones.forEach((gz) => {
       if (!gz.show || !gz.labels) return;
-      gz.labels.forEach(function (l) {
+      gz.labels.forEach((l) => {
         if (l.visible && !l.visible(G.shift())) return; // e.g. the zone has moved out of the plot
-        var l0 = l.dyn ? l.dyn(state.pressure) : l; // computed labels (mean outdoor temperature) are placed absolutely
-        var lt = l0.abs ? l0.t : l0.t + G.shift();   // other labels move with the zones
-        var wl = l0.w / 1000;
+        const l0 = l.dyn ? l.dyn(state.pressure) : l; // computed labels (mean outdoor temperature) are placed absolutely
+        const lt = l0.abs ? l0.t : l0.t + G.shift();   // other labels move with the zones
+        let wl = l0.w / 1000;
         if (l.sat) { // sit just inside the saturation curve at any pressure
-          var ws = Math.min(P.wSat(lt, state.pressure), state.wMax / 1000);
+          const ws = Math.min(P.wSat(lt, state.pressure), state.wMax / 1000);
           wl = ws - 0.15 * (ws - P.wFromRh(lt, 0.8, state.pressure));
         }
-        var s = toScreen(lt, wl);
+        let s = toScreen(lt, wl);
         if (l0.edgeT !== undefined) { // keep the label a fixed number of pixels inside a vertical (right) edge of its zone
-          var edgeX = toScreen(l0.edgeAbs ? l0.edgeT : l0.edgeT + G.shift(), 0)[0];
+          const edgeX = toScreen(l0.edgeAbs ? l0.edgeT : l0.edgeT + G.shift(), 0)[0];
           s = [edgeX - (l0.rightInset || 0), s[1]];
         }
         if (!l0.abs && !l.sat) { // centre the label vertically inside its region (curve labels hug the curve instead)
-          var cy = labelCenterY(entries[gz.id], l0, lt, s[0]);
+          const cy = labelCenterY(entries[gz.id], l0, lt, s[0]);
           if (cy !== null) s = [s[0], cy];
         }
-        var ang = l0.rot !== undefined ? l0.rot : l0.v ? Math.PI / 2 : 0;
+        let ang = l0.rot !== undefined ? l0.rot : l0.v ? Math.PI / 2 : 0;
         if (l.sat) { // run the text along the saturation curve
-          var a = toScreen(lt - 0.5, P.wSat(lt - 0.5, state.pressure));
-          var b = toScreen(lt + 0.5, P.wSat(lt + 0.5, state.pressure));
+          const a = toScreen(lt - 0.5, P.wSat(lt - 0.5, state.pressure));
+          const b = toScreen(lt + 0.5, P.wSat(lt + 0.5, state.pressure));
           ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
           // hug the curve: sit on it, then move 14 px into the region perpendicular to the curve
-          var sp = toScreen(lt, Math.min(P.wSat(lt, state.pressure), state.wMax / 1000));
+          const sp = toScreen(lt, Math.min(P.wSat(lt, state.pressure), state.wMax / 1000));
           s = [sp[0] - Math.sin(ang) * 14, sp[1] + Math.cos(ang) * 14];
         }
         ctx.save();
         ctx.translate(s[0], s[1]);
         ctx.rotate(ang);
-        var lines = (state.morph > 0.5 && l0.textRh ? l0.textRh : l0.text).split('\n'); // shorter text in the RH chart
-        lines.forEach(function (ln, i) {
+        const lines = (state.morph > 0.5 && l0.textRh ? l0.textRh : l0.text).split('\n'); // shorter text in the RH chart
+        lines.forEach((ln, i) => {
           haloText(ln, 0, (i - (lines.length - 1) / 2) * 12, '#3b3f45', true);
         });
         ctx.restore();
       });
     });
-  }
+  };
 
-  function drawAxes() {
-    var font = getComputedStyle(document.body).fontFamily;
+  const drawAxes = () => {
+    const font = getComputedStyle(document.body).fontFamily;
     ctx.strokeStyle = COLORS.ink;
     ctx.lineWidth = 1;
     ctx.strokeRect(plot.x0 + 0.5, plot.y0 + 0.5, plot.x1 - plot.x0 - 1, plot.y1 - plot.y0 - 1);
@@ -1029,11 +1017,11 @@
     ctx.fillStyle = COLORS.ink;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    var range = state.tMax - state.tMin;
-    var step = range > 80 ? 10 : 5;
-    for (var t = Math.ceil(state.tMin); t <= state.tMax; t++) {
-      var x = toScreen(t, 0)[0];
-      var major = t % step === 0;
+    const range = state.tMax - state.tMin;
+    const step = range > 80 ? 10 : 5;
+    for (let t = Math.ceil(state.tMin); t <= state.tMax; t++) {
+      const x = toScreen(t, 0)[0];
+      const major = t % step === 0;
       ctx.beginPath();
       ctx.moveTo(x, plot.y1);
       ctx.lineTo(x, plot.y1 + (major ? 6 : 3));
@@ -1062,10 +1050,10 @@
       ctx.fillText('Relative humidity (%)', 0, 0);
       ctx.restore();
     }
-  }
+  };
 
-  function drawTitle() {
-    var font = getComputedStyle(document.body).fontFamily;
+  const drawTitle = () => {
+    const font = getComputedStyle(document.body).fontFamily;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = COLORS.ink;
@@ -1074,30 +1062,30 @@
     ctx.fillStyle = COLORS.muted;
     ctx.font = '12px ' + font;
     ctx.fillText(state.subtitle || autoSubtitle(), plot.x0, 46);
-  }
+  };
 
-  function autoSubtitle() {
-    var parts = ['Atmospheric pressure ' + (state.pressure / 1000).toFixed(3) + ' kPa'];
+  const autoSubtitle = () => {
+    const parts = ['Atmospheric pressure ' + (state.pressure / 1000).toFixed(3) + ' kPa'];
     if (state.comfort === 'pmv') parts.push('PMV comfort: ' + state.met + ' met, ' + state.clo + ' clo, ' + state.vel + ' m/s');
     if (state.comfort === 'adaptive') parts.push('Adaptive comfort, mean outdoor ' + effectiveTOut().toFixed(1) + ' °C');
     if (state.comfort === 'givoni') parts.push('Givoni bioclimatic zones');
     if (state.station && state.station.name) parts.push(state.station.name + (state.month ? ' – ' + MONTHS[state.month] : ''));
     return parts.join('  ·  ');
-  }
+  };
 
-  function drawProcess() {
+  const drawProcess = () => {
     if (!state.points.length) return;
-    var font = getComputedStyle(document.body).fontFamily;
+    const font = getComputedStyle(document.body).fontFamily;
     if (state.points.length > 1) {
-      var pts = state.points.map(function (pt) { return [pt.t, pt.w]; });
+      const pts = state.points.map((pt) => [pt.t, pt.w]);
       pathFrom(densify(pts, 0.2, 0.0002));
       ctx.strokeStyle = COLORS.point;
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-    state.points.forEach(function (pt, i) {
-      var s = toScreen(pt.t, pt.w);
-      var selected = i === state.selected;
+    state.points.forEach((pt, i) => {
+      const s = toScreen(pt.t, pt.w);
+      const selected = i === state.selected;
       ctx.beginPath();
       ctx.arc(s[0], s[1], selected ? 9 : 7.5, 0, Math.PI * 2);
       ctx.fillStyle = selected ? '#ffffff' : COLORS.point;
@@ -1115,19 +1103,19 @@
         haloText(pt.label, s[0] + 12, s[1] - 10, COLORS.point, true);
       }
     });
-  }
+  };
 
   // Brief ring + dashed line from where you clicked to where the indicator snapped (shown when they differ).
-  var ghost = null;
-  function markClick(xy) {
-    var s = toScreen(state.indicator.t, state.indicator.w);
+  let ghost = null;
+  const markClick = (xy) => {
+    const s = toScreen(state.indicator.t, state.indicator.w);
     ghost = Math.hypot(s[0] - xy[0], s[1] - xy[1]) > 8 ? { x: xy[0], y: xy[1], t0: performance.now() } : null;
-  }
-  function drawGhost() {
+  };
+  const drawGhost = () => {
     if (!ghost) return;
-    var age = performance.now() - ghost.t0;
+    const age = performance.now() - ghost.t0;
     if (age > 700) { ghost = null; return; }
-    var s = toScreen(state.indicator.t, state.indicator.w);
+    const s = toScreen(state.indicator.t, state.indicator.w);
     ctx.save();
     ctx.globalAlpha = 0.7 * (1 - age / 700);
     ctx.strokeStyle = COLORS.ink;
@@ -1143,10 +1131,10 @@
     ctx.stroke();
     ctx.restore();
     scheduleRender();
-  }
-  function drawIndicator() {
-    var ind = state.indicator;
-    var s = toScreen(ind.t, ind.w);
+  };
+  const drawIndicator = () => {
+    const ind = state.indicator;
+    const s = toScreen(ind.t, ind.w);
     ctx.save();
     clipPlot();
     ctx.setLineDash([4, 4]);
@@ -1172,9 +1160,9 @@
     ctx.arc(s[0], s[1], 2, 0, Math.PI * 2);
     ctx.fillStyle = COLORS.ink;
     ctx.fill();
-  }
+  };
 
-  function render() {
+  const render = () => {
     renderQueued = false;
     if (!size.w || !size.h) return;
     ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
@@ -1215,23 +1203,23 @@
     drawProcess();
     drawIndicator();
     drawGhost();
-  }
+  };
 
-  function scheduleRender() {
+  const scheduleRender = () => {
     if (renderQueued) return;
     renderQueued = true;
     window.requestAnimationFrame(render);
-  }
+  };
 
-  function resize() {
-    var rect = canvas.getBoundingClientRect();
+  const resize = () => {
+    const rect = canvas.getBoundingClientRect();
     size.dpr = window.devicePixelRatio || 1;
     size.w = rect.width;
     size.h = rect.height;
     canvas.width = Math.round(rect.width * size.dpr);
     canvas.height = Math.round(rect.height * size.dpr);
     computeLayout();
-    var readout = $('readout');
+    const readout = $('readout');
     if (window.innerWidth > 860) {
       readout.style.left = plot.x0 + 10 + 'px';
       readout.style.top = plot.y0 + 10 + 'px';
@@ -1240,20 +1228,18 @@
       readout.style.top = '';
     }
     render();
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* UI updates                                                        */
   /* ---------------------------------------------------------------- */
 
-  function fmt(v, digits) {
-    return Number.isFinite(v) ? v.toFixed(digits) : '—';
-  }
+  const fmt = (v, digits) => Number.isFinite(v) ? v.toFixed(digits) : '—';
 
-  function updateReadout() {
-    var ind = state.indicator;
-    var pr = P.properties(ind.t, ind.w, state.pressure);
-    var rows = [
+  const updateReadout = () => {
+    const ind = state.indicator;
+    const pr = P.properties(ind.t, ind.w, state.pressure);
+    const rows = [
       ['Dry-bulb temp.', fmt(pr.dryBulb, 1) + ' °C'],
       ['Relative humidity', fmt(pr.relativeHumidity * 100, 1) + ' %'],
       ['Humidity ratio', fmt(pr.humidityRatio * 1000, 2) + ' g/kg'],
@@ -1265,40 +1251,40 @@
       ['Enthalpy', fmt(pr.enthalpy, 2) + ' kJ/kg'],
       ['Density', fmt(pr.density, 3) + ' kg/m³']
     ];
-    var html = '<p class="readout-compact">' + fmt(ind.t, 1) + ' °C · ' + fmt(pr.relativeHumidity * 100, 0) + ' % RH</p><h2>Current conditions</h2><dl>';
-    rows.forEach(function (r) {
+    let html = '<p class="readout-compact">' + fmt(ind.t, 1) + ' °C · ' + fmt(pr.relativeHumidity * 100, 0) + ' % RH</p><h2>Current conditions</h2><dl>';
+    rows.forEach((r) => {
       html += '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
     });
     html += '</dl>';
     if (state.comfort === 'pmv') {
-      var c = pmvAt(ind.t, ind.w);
-      var ok = Math.abs(c.pmv) <= 0.5;
+      const c = pmvAt(ind.t, ind.w);
+      const ok = Math.abs(c.pmv) <= 0.5;
       html += '<div class="comfort-line"><dl><dt>PMV</dt><dd>' + fmt(c.pmv, 2) + '</dd><dt>PPD</dt><dd>' + fmt(c.ppd, 1) +
         ' %</dd><dt>Sensation</dt><dd class="' + (ok ? 'ok' : 'bad') + '">' + C.sensationLabel(c.pmv) + '</dd></dl></div>';
     } else if (state.comfort === 'adaptive') {
-      var a = C.adaptive(effectiveTOut());
-      var in90 = ind.t >= a.limits90[0] && ind.t <= a.limits90[1];
-      var in80 = ind.t >= a.limits80[0] && ind.t <= a.limits80[1];
+      const a = C.adaptive(effectiveTOut());
+      const in90 = ind.t >= a.limits90[0] && ind.t <= a.limits90[1];
+      const in80 = ind.t >= a.limits80[0] && ind.t <= a.limits80[1];
       html += '<div class="comfort-line"><dl><dt>Neutral temp.</dt><dd>' + fmt(a.neutral, 1) + ' °C</dd><dt>Acceptability</dt><dd class="' +
         (in80 ? 'ok' : 'bad') + '">' + (in90 ? '90%' : in80 ? '80%' : 'Outside') + '</dd></dl></div>';
     } else if (state.comfort === 'givoni') {
       G.setMeanOutdoor(effectiveTOut());
-      var strategies = G.classify(ind.t, ind.w, state.pressure);
-      var comfy = strategies.some(function (z) { return z.id === 'c'; });
+      const strategies = G.classify(ind.t, ind.w, state.pressure);
+      const comfy = strategies.some((z) => z.id === 'c');
       html += '<div class="comfort-line"><dl><dt>Strategy</dt><dd class="' + (comfy ? 'ok' : '') + '">' +
-        strategies.map(function (z) { return z.name; }).join(', ') + '</dd></dl></div>';
+        strategies.map((z) => z.name).join(', ') + '</dd></dl></div>';
       document.dispatchEvent(new CustomEvent('psychro:zones', { detail: { zones: strategies, t: ind.t, w: ind.w } }));
     }
     if (state.data && cache.bins && state.showData) { // data cell under the indicator
-      var cx = Math.floor(ind.t);
-      var count;
-      var range;
+      const cx = Math.floor(ind.t);
+      let count;
+      let range;
       if (state.morphTarget >= 0.5) { // RH chart: 1 °C x 5 % RH cells
-        var ry = Math.min(Math.floor(clamp(pr.relativeHumidity * 100, 0, 100) / RH_STEP), 100 / RH_STEP - 1);
+        const ry = Math.min(Math.floor(clamp(pr.relativeHumidity * 100, 0, 100) / RH_STEP), 100 / RH_STEP - 1);
         count = (cache.rhBins || {})[cx + ':' + ry] || 0;
         range = cx + '–' + (cx + 1) + ' °C, ' + ry * RH_STEP + '–' + (ry + 1) * RH_STEP + ' % RH';
       } else { // psychrometric chart: 1 °C x 1 g/kg cells
-        var cy = Math.floor(ind.w * 1000);
+        const cy = Math.floor(ind.w * 1000);
         count = cache.bins[cx + ':' + cy] || 0;
         range = cx + '–' + (cx + 1) + ' °C, ' + cy + '–' + (cy + 1) + ' g/kg';
       }
@@ -1306,51 +1292,51 @@
     }
     $('readout-body').innerHTML = html;
 
-    var rhPct = clamp(pr.relativeHumidity * 100, 0, 100);
+    const rhPct = clamp(pr.relativeHumidity * 100, 0, 100);
     $('dbt').value = String(ind.t);
     $('rh').value = String(rhPct);
     if (document.activeElement !== $('dbt-num')) $('dbt-num').value = ind.t.toFixed(1);
     if (document.activeElement !== $('rh-num')) $('rh-num').value = rhPct.toFixed(1);
-  }
+  };
 
-  function renderPoints() {
-    var list = $('points-list');
+  const renderPoints = () => {
+    const list = $('points-list');
     list.textContent = '';
-    state.points.forEach(function (pt, i) {
-      var li = document.createElement('li');
+    state.points.forEach((pt, i) => {
+      const li = document.createElement('li');
       li.className = 'point' + (i === state.selected ? ' selected' : '');
 
-      var badge = document.createElement('span');
+      const badge = document.createElement('span');
       badge.className = 'badge';
       badge.textContent = String(i + 1);
 
-      var body = document.createElement('div');
-      var input = document.createElement('input');
+      const body = document.createElement('div');
+      const input = document.createElement('input');
       input.type = 'text';
       input.value = pt.label;
       input.placeholder = 'Point ' + (i + 1);
       input.setAttribute('aria-label', 'Label for point ' + (i + 1));
-      input.addEventListener('input', function () {
+      input.addEventListener('input', () => {
         pt.label = input.value;
         scheduleRender();
       });
-      input.addEventListener('focus', function () {
+      input.addEventListener('focus', () => {
         state.selected = i;
         li.classList.add('selected');
         scheduleRender();
       });
-      var vals = document.createElement('span');
+      const vals = document.createElement('span');
       vals.className = 'vals';
       vals.textContent = pointSummary(pt);
       body.appendChild(input);
       body.appendChild(vals);
 
-      var del = document.createElement('button');
+      const del = document.createElement('button');
       del.type = 'button';
       del.className = 'btn icon';
       del.setAttribute('aria-label', 'Remove point ' + (i + 1));
       del.textContent = '×';
-      del.addEventListener('click', function () {
+      del.addEventListener('click', () => {
         removePoint(i);
       });
 
@@ -1359,58 +1345,58 @@
       li.appendChild(del);
       list.appendChild(li);
     });
-  }
+  };
 
-  function pointSummary(pt) {
-    var rh = P.rhFromW(pt.t, pt.w, state.pressure) * 100;
+  const pointSummary = (pt) => {
+    const rh = P.rhFromW(pt.t, pt.w, state.pressure) * 100;
     return pt.t.toFixed(1) + ' °C · ' + rh.toFixed(0) + '% · ' + (pt.w * 1000).toFixed(1) + ' g/kg · ' + P.enthalpy(pt.t, pt.w).toFixed(1) + ' kJ/kg';
-  }
+  };
 
-  function updatePointValues() {
-    var items = $('points-list').querySelectorAll('.vals');
-    state.points.forEach(function (pt, i) {
+  const updatePointValues = () => {
+    const items = $('points-list').querySelectorAll('.vals');
+    state.points.forEach((pt, i) => {
       if (items[i]) items[i].textContent = pointSummary(pt);
     });
-  }
+  };
 
-  function removePoint(i) {
+  const removePoint = (i) => {
     state.points.splice(i, 1);
     if (state.selected === i) state.selected = -1;
     else if (state.selected > i) state.selected--;
     renderPoints();
     scheduleRender();
-  }
+  };
 
-  function renderMetricsTable() {
-    var body = $('metrics-body');
+  const renderMetricsTable = () => {
+    const body = $('metrics-body');
     body.textContent = '';
-    FAMILIES.forEach(function (fam) {
-      var tr = document.createElement('tr');
-      var name = document.createElement('td');
+    FAMILIES.forEach((fam) => {
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
       name.textContent = fam.name;
-      var unit = document.createElement('span');
+      const unit = document.createElement('span');
       unit.className = 'unit';
       unit.textContent = fam.unit;
       name.appendChild(unit);
 
-      var showTd = document.createElement('td');
-      var cb = document.createElement('input');
+      const showTd = document.createElement('td');
+      const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = fam.show;
       cb.setAttribute('aria-label', 'Show ' + fam.name + ' lines');
-      cb.addEventListener('change', function () {
+      cb.addEventListener('change', () => {
         fam.show = cb.checked;
         scheduleRender();
       });
       showTd.appendChild(cb);
 
-      var hlTd = document.createElement('td');
-      var radio = document.createElement('input');
+      const hlTd = document.createElement('td');
+      const radio = document.createElement('input');
       radio.type = 'radio';
       radio.name = 'highlight';
       radio.value = fam.id;
       radio.setAttribute('aria-label', 'Highlight ' + fam.name + ' lines');
-      radio.addEventListener('change', function () {
+      radio.addEventListener('change', () => {
         state.highlight = fam.id;
         if (!fam.show) {
           fam.show = true;
@@ -1426,18 +1412,18 @@
       body.appendChild(tr);
     });
 
-    var tr = document.createElement('tr');
-    var nameTd = document.createElement('td');
+    const tr = document.createElement('tr');
+    const nameTd = document.createElement('td');
     nameTd.textContent = 'None';
-    var empty = document.createElement('td');
-    var hlTd = document.createElement('td');
-    var none = document.createElement('input');
+    const empty = document.createElement('td');
+    const hlTd = document.createElement('td');
+    const none = document.createElement('input');
     none.type = 'radio';
     none.name = 'highlight';
     none.value = '';
     none.checked = true;
     none.setAttribute('aria-label', 'No highlight');
-    none.addEventListener('change', function () {
+    none.addEventListener('change', () => {
       state.highlight = null;
       scheduleRender();
     });
@@ -1446,69 +1432,69 @@
     tr.appendChild(empty);
     tr.appendChild(hlTd);
     body.appendChild(tr);
-  }
+  };
 
-  function rebuild() {
+  const rebuild = () => {
     buildFamilies();
     buildComfort();
     buildData();
     updateReadout();
     updatePointValues();
     scheduleRender();
-  }
+  };
 
-  function setIndicator(t, w) {
+  const setIndicator = (t, w) => {
     state.indicator.t = clamp(t, state.tMin, state.tMax);
     state.indicator.w = clamp(w, 0, wTopAt(state.indicator.t));
     updateReadout();
     scheduleRender();
-  }
+  };
 
-  function setPressure(pa) {
+  const setPressure = (pa) => {
     if (!Number.isFinite(pa) || pa < 30000 || pa > 120000) return;
     state.pressure = pa;
     $('pressure').value = (pa / 1000).toFixed(3);
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* Chart type morph                                                  */
   /* ---------------------------------------------------------------- */
 
-  var animStart = null;
-  var animFrom = 0;
+  let animStart = null;
+  let animFrom = 0;
 
-  function animateMorph(target) {
+  const animateMorph = (target) => {
     state.morphTarget = target;
     animFrom = state.morph;
     animStart = null;
     window.requestAnimationFrame(stepMorph);
     syncChartType();
-  }
+  };
 
-  function stepMorph(now) {
+  const stepMorph = (now) => {
     if (animStart === null) animStart = now;
-    var duration = 700;
-    var f = clamp((now - animStart) / duration, 0, 1);
-    var eased = f < 0.5 ? 4 * f * f * f : 1 - Math.pow(-2 * f + 2, 3) / 2;
+    const duration = 700;
+    const f = clamp((now - animStart) / duration, 0, 1);
+    const eased = f < 0.5 ? 4 * f * f * f : 1 - Math.pow(-2 * f + 2, 3) / 2;
     state.morph = animFrom + (state.morphTarget - animFrom) * eased;
     $('morph').value = String(Math.round(state.morph * 100));
     $('morph-out').textContent = Math.round(state.morph * 100) + '%';
     render();
     if (f < 1) window.requestAnimationFrame(stepMorph);
-  }
+  };
 
-  var lastRhMode = false;
+  let lastRhMode = false;
 
-  function setReadoutMin(on) {
+  const setReadoutMin = (on) => {
     $('readout').classList.toggle('min', on);
-    var b = $('readout-toggle');
+    const b = $('readout-toggle');
     b.textContent = on ? '+' : '−';
     b.setAttribute('aria-expanded', String(!on));
     b.setAttribute('aria-label', on ? 'Expand current conditions' : 'Minimize current conditions');
-  }
+  };
 
-  function syncChartType() {
-    var rhMode = state.morphTarget >= 0.5;
+  const syncChartType = () => {
+    const rhMode = state.morphTarget >= 0.5;
     if (rhMode !== lastRhMode) { // minimize the conditions box in the RH chart, restore it in the psychrometric chart
       lastRhMode = rhMode;
       setReadoutMin(rhMode);
@@ -1518,55 +1504,55 @@
     $('btn-rh').classList.toggle('active', rhMode);
     $('btn-psy').setAttribute('aria-pressed', String(!rhMode));
     $('btn-rh').setAttribute('aria-pressed', String(rhMode));
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* Pointer interaction                                               */
   /* ---------------------------------------------------------------- */
 
-  function localPoint(e) {
-    var rect = canvas.getBoundingClientRect();
+  const localPoint = (e) => {
+    const rect = canvas.getBoundingClientRect();
     return [e.clientX - rect.left, e.clientY - rect.top];
-  }
+  };
 
-  function hitPoint(xy) {
-    for (var i = state.points.length - 1; i >= 0; i--) {
-      var s = toScreen(state.points[i].t, state.points[i].w);
+  const hitPoint = (xy) => {
+    for (let i = state.points.length - 1; i >= 0; i--) {
+      const s = toScreen(state.points[i].t, state.points[i].w);
       if (Math.hypot(s[0] - xy[0], s[1] - xy[1]) <= 11) return i;
     }
     return -1;
-  }
+  };
 
   // Givoni zones under the pointer (highlighted while hovering).
-  var hoverSet = {};
-  var hoverKey = '';
-  function setHover(pos) {
-    var ids = [];
+  let hoverSet = {};
+  let hoverKey = '';
+  const setHover = (pos) => {
+    const ids = [];
     if (pos && state.comfort === 'givoni') {
       G.setMeanOutdoor(effectiveTOut());
-      G.zones.forEach(function (z) {
+      G.zones.forEach((z) => {
         if (z.show && G.contains(z, pos.t, pos.w, state.pressure)) ids.push(z.id);
       });
     }
-    var key = ids.join(',');
+    const key = ids.join(',');
     if (key === hoverKey) return;
     hoverKey = key;
     hoverSet = {};
-    ids.forEach(function (id) { hoverSet[id] = true; });
+    ids.forEach((id) => { hoverSet[id] = true; });
     scheduleRender();
-  }
+  };
 
   // True only inside the plot rectangle and on or below the 100% RH line.
-  function inChart(xy) {
+  const inChart = (xy) => {
     if (xy[0] < plot.x0 || xy[0] > plot.x1 || xy[1] < plot.y0 || xy[1] > plot.y1) return false;
-    var t = state.tMin + ((xy[0] - plot.x0) / (plot.x1 - plot.x0)) * (state.tMax - state.tMin);
-    var target = (plot.y1 - xy[1]) / (plot.y1 - plot.y0);
+    const t = state.tMin + ((xy[0] - plot.x0) / (plot.x1 - plot.x0)) * (state.tMax - state.tMin);
+    const target = (plot.y1 - xy[1]) / (plot.y1 - plot.y0);
     return target <= yFraction(t, wTopAt(t)) + 1e-9;
-  }
+  };
 
-  canvas.addEventListener('pointerdown', function (e) {
-    var xy = localPoint(e);
-    var hit = hitPoint(xy);
+  canvas.addEventListener('pointerdown', (e) => {
+    const xy = localPoint(e);
+    const hit = hitPoint(xy);
     if (hit < 0 && !inChart(xy)) return;
     canvas.setPointerCapture(e.pointerId);
     canvas.focus({ preventScroll: true });
@@ -1580,7 +1566,7 @@
         renderPoints();
       }
       drag = { type: 'indicator' };
-      var pos = fromScreen(xy[0], xy[1]);
+      const pos = fromScreen(xy[0], xy[1]);
       setIndicator(pos.t, pos.w);
       markClick(xy);
       document.dispatchEvent(new CustomEvent('psychro:chartclick'));
@@ -1588,17 +1574,17 @@
     scheduleRender();
   });
 
-  canvas.addEventListener('pointermove', function (e) {
-    var xy = localPoint(e);
+  canvas.addEventListener('pointermove', (e) => {
+    const xy = localPoint(e);
     if (!drag) {
-      var over = inChart(xy);
+      const over = inChart(xy);
       canvas.style.cursor = hitPoint(xy) >= 0 ? 'grab' : over ? 'crosshair' : 'default';
       setHover(over ? fromScreen(xy[0], xy[1]) : null);
       return;
     }
-    var pos = fromScreen(xy[0], xy[1]);
+    const pos = fromScreen(xy[0], xy[1]);
     if (drag.type === 'point') {
-      var pt = state.points[drag.index];
+      const pt = state.points[drag.index];
       pt.t = pos.t;
       pt.w = pos.w;
       updatePointValues();
@@ -1608,26 +1594,26 @@
     }
   });
 
-  function endDrag(e) {
+  const endDrag = (e) => {
     if (drag && canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     drag = null;
-  }
+  };
 
-  canvas.addEventListener('pointerleave', function () { if (!drag) setHover(null); });
+  canvas.addEventListener('pointerleave', () => { if (!drag) setHover(null); });
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 
-  canvas.addEventListener('keydown', function (e) {
-    var ind = state.indicator;
-    var big = e.shiftKey ? 10 : e.ctrlKey || e.metaKey ? 0.1 : 1;
-    var rh = P.rhFromW(ind.t, ind.w, state.pressure);
+  canvas.addEventListener('keydown', (e) => {
+    const ind = state.indicator;
+    const big = e.shiftKey ? 10 : e.ctrlKey || e.metaKey ? 0.1 : 1;
+    const rh = P.rhFromW(ind.t, ind.w, state.pressure);
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      var t = clamp(ind.t + (e.key === 'ArrowLeft' ? -0.5 : 0.5) * big, state.tMin, state.tMax);
+      const t = clamp(ind.t + (e.key === 'ArrowLeft' ? -0.5 : 0.5) * big, state.tMin, state.tMax);
       setIndicator(t, P.wFromRh(t, rh, state.pressure));
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
-      var nr = clamp(rh + (e.key === 'ArrowUp' ? 0.01 : -0.01) * big, 0, 1);
+      const nr = clamp(rh + (e.key === 'ArrowUp' ? 0.01 : -0.01) * big, 0, 1);
       setIndicator(ind.t, P.wFromRh(ind.t, nr, state.pressure));
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.selected >= 0) {
       e.preventDefault();
@@ -1637,45 +1623,45 @@
     }
   });
 
-  function addPoint() {
+  const addPoint = () => {
     state.points.push({ t: state.indicator.t, w: state.indicator.w, label: '' });
     state.selected = state.points.length - 1;
     renderPoints();
     scheduleRender();
-  }
+  };
 
   /* ---------------------------------------------------------------- */
   /* Controls                                                          */
   /* ---------------------------------------------------------------- */
 
-  function num(id, fallback) {
-    var v = parseFloat($(id).value);
+  const num = (id, fallback) => {
+    const v = parseFloat($(id).value);
     return Number.isFinite(v) ? v : fallback;
-  }
+  };
 
-  function bindSlider(rangeId, numId, apply) {
-    $(rangeId).addEventListener('input', function () {
+  const bindSlider = (rangeId, numId, apply) => {
+    $(rangeId).addEventListener('input', () => {
       apply(parseFloat($(rangeId).value));
     });
-    $(numId).addEventListener('change', function () {
-      var v = parseFloat($(numId).value);
+    $(numId).addEventListener('change', () => {
+      const v = parseFloat($(numId).value);
       if (Number.isFinite(v)) apply(v);
     });
-  }
+  };
 
-  bindSlider('dbt', 'dbt-num', function (t) {
-    var rh = P.rhFromW(state.indicator.t, state.indicator.w, state.pressure);
+  bindSlider('dbt', 'dbt-num', (t) => {
+    const rh = P.rhFromW(state.indicator.t, state.indicator.w, state.pressure);
     t = clamp(t, state.tMin, state.tMax);
     setIndicator(t, P.wFromRh(t, clamp(rh, 0, 1), state.pressure));
   });
 
-  bindSlider('rh', 'rh-num', function (rh) {
+  bindSlider('rh', 'rh-num', (rh) => {
     setIndicator(state.indicator.t, P.wFromRh(state.indicator.t, clamp(rh, 0, 100) / 100, state.pressure));
   });
 
-  $('btn-psy').addEventListener('click', function () { animateMorph(0); });
-  $('btn-rh').addEventListener('click', function () { animateMorph(1); });
-  $('morph').addEventListener('input', function () {
+  $('btn-psy').addEventListener('click', () => { animateMorph(0); });
+  $('btn-rh').addEventListener('click', () => { animateMorph(1); });
+  $('morph').addEventListener('input', () => {
     state.morph = parseFloat($('morph').value) / 100;
     state.morphTarget = state.morph;
     syncChartType();
@@ -1684,35 +1670,35 @@
     scheduleRender();
   });
 
-  function syncComfortControls() {
+  const syncComfortControls = () => {
     $('pmv-controls').hidden = state.comfort !== 'pmv';
     $('adaptive-controls').hidden = state.comfort !== 'adaptive' && state.comfort !== 'givoni'; // Givoni zones also use the mean outdoor temperature
     $('givoni-controls').hidden = state.comfort !== 'givoni';
-  }
+  };
 
-  function renderGivoniZones() {
-    var list = $('givoni-zones');
+  const renderGivoniZones = () => {
+    const list = $('givoni-zones');
     list.textContent = '';
-    G.zones.slice().reverse().forEach(function (gz) {
-      var label = document.createElement('label');
+    G.zones.slice().reverse().forEach((gz) => {
+      const label = document.createElement('label');
       label.className = 'zone-toggle';
-      var cb = document.createElement('input');
+      const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = gz.show;
-      cb.addEventListener('change', function () {
+      cb.addEventListener('change', () => {
         gz.show = cb.checked;
         buildComfort();
         scheduleRender();
       });
-      var swatch = document.createElement('span');
+      const swatch = document.createElement('span');
       swatch.className = 'swatch';
       swatch.style.background = 'rgba(' + gz.rgb + ',0.25)';
       swatch.style.borderColor = 'rgb(' + gz.rgb + ')';
-      var code = document.createElement('span');
+      const code = document.createElement('span');
       code.className = 'zone-code';
       code.style.color = 'rgb(' + gz.rgb + ')';
       code.textContent = gz.code;
-      var name = document.createElement('span');
+      const name = document.createElement('span');
       name.textContent = gz.name;
       label.appendChild(cb);
       label.appendChild(swatch);
@@ -1720,9 +1706,9 @@
       label.appendChild(name);
       list.appendChild(label);
     });
-  }
+  };
 
-  $('comfort-model').addEventListener('change', function () {
+  $('comfort-model').addEventListener('change', () => {
     state.comfort = $('comfort-model').value;
     syncComfortControls();
     buildComfort();
@@ -1731,8 +1717,8 @@
     scheduleRender();
   });
 
-  ['met', 'clo', 'vel', 'mrt', 'tout'].forEach(function (id) {
-    $(id).addEventListener('change', function () {
+  ['met', 'clo', 'vel', 'mrt', 'tout'].forEach((id) => {
+    $(id).addEventListener('change', () => {
       state.met = clamp(num('met', 1.1), 0.7, 4);
       state.clo = clamp(num('clo', 0.5), 0, 2);
       state.vel = clamp(num('vel', 0.1), 0, 2);
@@ -1745,12 +1731,12 @@
     });
   });
 
-  $('readout-toggle').addEventListener('click', function () {
+  $('readout-toggle').addEventListener('click', () => {
     setReadoutMin(!$('readout').classList.contains('min'));
   });
 
-  $('tout-auto').addEventListener('change', function () {
-    var wasAuto = state.tOutAuto;
+  $('tout-auto').addEventListener('change', () => {
+    const wasAuto = state.tOutAuto;
     state.tOutAuto = $('tout-auto').checked;
     // Turning "From weather data" off keeps the value shown in the box as the manual setting.
     if (wasAuto && !state.tOutAuto) state.tOut = clamp(num('tout', state.tOut), -10, 45);
@@ -1762,20 +1748,20 @@
   });
 
   $('add-point').addEventListener('click', addPoint);
-  $('clear-points').addEventListener('click', function () {
+  $('clear-points').addEventListener('click', () => {
     state.points = [];
     state.selected = -1;
     renderPoints();
     scheduleRender();
   });
 
-  $('file-input').addEventListener('change', function () {
-    var file = $('file-input').files[0];
+  $('file-input').addEventListener('change', () => {
+    const file = $('file-input').files[0];
     if (file) loadFile(file);
     $('file-input').value = '';
   });
 
-  $('month').addEventListener('change', function () {
+  $('month').addEventListener('change', () => {
     state.month = parseInt($('month').value, 10) || 0;
     buildComfort();
     buildData();
@@ -1783,12 +1769,12 @@
     scheduleRender();
   });
 
-  $('show-data').addEventListener('change', function () {
+  $('show-data').addEventListener('change', () => {
     state.showData = $('show-data').checked;
     scheduleRender();
   });
 
-  $('clear-data').addEventListener('click', function () {
+  $('clear-data').addEventListener('click', () => {
     state.data = null;
     state.station = null;
     $('station').hidden = true;
@@ -1804,10 +1790,10 @@
     rebuild();
   });
 
-  ['tmin', 'tmax', 'wmax'].forEach(function (id) {
-    $(id).addEventListener('change', function () {
-      var tMin = Math.round(num('tmin', 0));
-      var tMax = Math.round(num('tmax', 50));
+  ['tmin', 'tmax', 'wmax'].forEach((id) => {
+    $(id).addEventListener('change', () => {
+      const tMin = Math.round(num('tmin', 0));
+      let tMax = Math.round(num('tmax', 50));
       if (tMax - tMin < 10) tMax = tMin + 10;
       state.tMin = clamp(tMin, -40, 60);
       state.tMax = clamp(tMax, state.tMin + 10, 70);
@@ -1822,22 +1808,22 @@
     });
   });
 
-  $('pressure').addEventListener('change', function () {
+  $('pressure').addEventListener('change', () => {
     setPressure(num('pressure', 101.325) * 1000);
     rebuild();
   });
 
-  $('apply-elevation').addEventListener('click', function () {
+  $('apply-elevation').addEventListener('click', () => {
     setPressure(P.pressureFromElevation(num('elevation', 0)));
     rebuild();
   });
 
-  $('title').addEventListener('input', function () {
+  $('title').addEventListener('input', () => {
     state.title = $('title').value;
     scheduleRender();
   });
 
-  $('subtitle').addEventListener('input', function () {
+  $('subtitle').addEventListener('input', () => {
     state.subtitle = $('subtitle').value;
     scheduleRender();
   });
@@ -1846,24 +1832,24 @@
   /* Export                                                            */
   /* ---------------------------------------------------------------- */
 
-  function download(name, blob) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
+  const download = (name, blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url;
     a.download = name;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-  }
+    setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
+  };
 
-  function exportRows() {
-    var rows = [{ name: 'Indicator', t: state.indicator.t, w: state.indicator.w }];
-    state.points.forEach(function (pt, i) {
+  const exportRows = () => {
+    const rows = [{ name: 'Indicator', t: state.indicator.t, w: state.indicator.w }];
+    state.points.forEach((pt, i) => {
       rows.push({ name: pt.label || 'Point ' + (i + 1), t: pt.t, w: pt.w });
     });
-    return rows.map(function (r) {
-      var pr = P.properties(r.t, r.w, state.pressure);
+    return rows.map((r) => {
+      const pr = P.properties(r.t, r.w, state.pressure);
       return {
         name: r.name,
         dryBulb_C: +pr.dryBulb.toFixed(2),
@@ -1878,28 +1864,26 @@
         density_kgm3: +pr.density.toFixed(4)
       };
     });
-  }
+  };
 
-  $('export-png').addEventListener('click', function () {
-    canvas.toBlob(function (blob) {
+  $('export-png').addEventListener('click', () => {
+    canvas.toBlob((blob) => {
       if (blob) download('psychrometric-chart.png', blob);
     }, 'image/png');
   });
 
-  $('export-csv').addEventListener('click', function () {
-    var rows = exportRows();
-    var keys = Object.keys(rows[0]);
-    var csv = keys.join(',') + '\n' + rows.map(function (r) {
-      return keys.map(function (k) {
-        var v = r[k];
+  $('export-csv').addEventListener('click', () => {
+    const rows = exportRows();
+    const keys = Object.keys(rows[0]);
+    const csv = keys.join(',') + '\n' + rows.map((r) => keys.map((k) => {
+        const v = r[k];
         return typeof v === 'string' ? '"' + v.replace(/"/g, '""') + '"' : v;
-      }).join(',');
-    }).join('\n');
+      }).join(',')).join('\n');
     download('psychrometric-data.csv', new Blob([csv], { type: 'text/csv' }));
   });
 
-  $('export-json').addEventListener('click', function () {
-    var payload = {
+  $('export-json').addEventListener('click', () => {
+    const payload = {
       pressure_Pa: state.pressure,
       comfort: state.comfort,
       points: exportRows()
@@ -1911,25 +1895,25 @@
   /* Drag & drop                                                       */
   /* ---------------------------------------------------------------- */
 
-  var dragDepth = 0;
-  window.addEventListener('dragenter', function (e) {
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => {
     if (!e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') < 0) return;
     e.preventDefault();
     dragDepth++;
     $('drop-overlay').hidden = false;
   });
-  window.addEventListener('dragover', function (e) {
+  window.addEventListener('dragover', (e) => {
     e.preventDefault();
   });
-  window.addEventListener('dragleave', function () {
+  window.addEventListener('dragleave', () => {
     dragDepth = Math.max(0, dragDepth - 1);
     if (!dragDepth) $('drop-overlay').hidden = true;
   });
-  window.addEventListener('drop', function (e) {
+  window.addEventListener('drop', (e) => {
     e.preventDefault();
     dragDepth = 0;
     $('drop-overlay').hidden = true;
-    var file = e.dataTransfer && e.dataTransfer.files[0];
+    const file = e.dataTransfer && e.dataTransfer.files[0];
     if (file) loadFile(file);
   });
 
