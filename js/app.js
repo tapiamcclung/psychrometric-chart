@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  const t = (key, vars) => I18n.t(key, vars);
+  const lowerEs = (s) => (I18n.lang === 'es' ? s.toLowerCase() : s); // Spanish names mid-sentence are lower case
+
   const P = window.Psychro;
   const C = window.Comfort;
   const G = window.Givoni;
@@ -55,7 +58,7 @@
     station: null,
     month: 0,
     showData: true,
-    title: 'Psychrometric Chart',
+    title: I18n.t('Psychrometric Chart'),
     subtitle: ''
   };
 
@@ -346,17 +349,17 @@
           });
         }
       });
-      note = 'Shaded bands show |PMV| ≤ 0.7, 0.5 and 0.2 (ISO 7730 categories III, II, I). Mean radiant temperature = air temperature + radiant offset.';
+      note = t('Shaded bands show |PMV| ≤ 0.7, 0.5 and 0.2 (ISO 7730 categories III, II, I). Mean radiant temperature = air temperature + radiant offset.');
     } else if (state.comfort === 'adaptive') {
       const tOut = effectiveTOut();
       const a = C.adaptive(tOut);
       const z80 = bandPolygon(a.limits80[0], a.limits80[1]);
       const z90 = bandPolygon(a.limits90[0], a.limits90[1]);
-      if (z80) zones.push({ poly: z80, alpha: 0.16, label: '80% acceptability' });
-      if (z90) zones.push({ poly: z90, alpha: 0.24, label: '90% acceptability' });
+      if (z80) zones.push({ poly: z80, alpha: 0.16, label: t('80% acceptability') });
+      if (z90) zones.push({ poly: z90, alpha: 0.24, label: t('90% acceptability') });
       note =
-        'Neutral operative temperature ' + a.neutral.toFixed(1) + ' °C for a mean outdoor temperature of ' + tOut.toFixed(1) + ' °C.' +
-        (a.applicable ? '' : ' Outside the 10–33.5 °C range of applicability, limits are clamped.');
+        t('Neutral operative temperature {neutral} °C for a mean outdoor temperature of {tout} °C.', { neutral: a.neutral.toFixed(1), tout: tOut.toFixed(1) }) +
+        (a.applicable ? '' : ' ' + t('Outside the 10–33.5 °C range of applicability, limits are clamped.'));
     } else if (state.comfort === 'givoni') {
       G.setMeanOutdoor(effectiveTOut());
       G.zones.forEach((gz) => {
@@ -364,9 +367,9 @@
         const poly = G.polygon(gz, state.pressure);
         // Keep corners inside the chart: at low pressure (altitude) the saturation curve rises above the top edge.
         const wCap = state.wMax / 1000;
-        if (poly) zones.push({ poly: poly.map((v) => [v[0], Math.min(v[1], wCap)]), zone: gz, label: gz.name });
+        if (poly) zones.push({ poly: poly.map((v) => [v[0], Math.min(v[1], wCap)]), zone: gz, label: t(gz.name) });
       });
-      note = 'Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. All zones shift with the mean outdoor temperature (' + effectiveTOut().toFixed(1) + ' °C here); limits are editable in js/givoni.js.';
+      note = t('Building bioclimatic chart after Givoni (1998), developed-country limits. Areas outside every zone need active heating or air-conditioning. All zones shift with the mean outdoor temperature ({tout} °C here); limits are editable in js/givoni.js.', { tout: effectiveTOut().toFixed(1) });
     }
     cache.comfort = zones.map((z) => {
       if (z.zone) z.tail = densify([z.poly[z.poly.length - 1], z.poly[0]], 0.25, 0.0004);
@@ -462,11 +465,11 @@
     cache.rhBinMax = rhMax;
     cache.stats = { total: rows.length, comfort: comfortHours };
 
-    const period = state.month ? MONTHS[state.month] : 'full year';
-    let text = rows.length + ' hourly records (' + period + '). Darkest cell: ' + max + ' h.';
+    const period = state.month ? t(MONTHS[state.month]) : t('full year');
+    let text = t('{n} hourly records ({period}). Darkest cell: {max} h.', { n: rows.length, period, max });
     const stats = $('data-stats');
     if (state.comfort === 'givoni' && rows.length) {
-      stats.textContent = text + ' Hours where each strategy is effective (zones overlap, so totals exceed 100%):';
+      stats.textContent = text + ' ' + t('Hours where each strategy is effective (zones overlap, so totals exceed 100%):');
       const ul = document.createElement('ul');
       ul.className = 'strategy-stats';
       Object.keys(strategyHours)
@@ -474,7 +477,7 @@
         .forEach((name) => {
           const li = document.createElement('li');
           const label = document.createElement('span');
-          label.textContent = name;
+          label.textContent = `${t(name)}: `;
           const val = document.createElement('span');
           val.textContent = ((strategyHours[name] / rows.length) * 100).toFixed(1) + '%';
           li.appendChild(label);
@@ -485,8 +488,11 @@
       return;
     }
     if (state.comfort !== 'none' && rows.length) {
-      text += ' ' + comfortHours + ' h (' + ((comfortHours / rows.length) * 100).toFixed(1) + '%) fall inside the ' +
-        (state.comfort === 'pmv' ? 'PMV ±0.5' : 'adaptive 80%') + ' comfort zone.';
+      text += ' ' + t('{h} h ({pct}%) fall inside the {zone} comfort zone.', {
+        h: comfortHours,
+        pct: ((comfortHours / rows.length) * 100).toFixed(1),
+        zone: t(state.comfort === 'pmv' ? 'PMV ±0.5' : 'adaptive 80%')
+      });
     }
     stats.textContent = text;
   };
@@ -545,7 +551,7 @@
     }
 
     if (!rows.length) {
-      window.alert('No usable dry-bulb temperature / relative humidity data was found in ' + fileName + '.');
+      window.alert(t('No usable dry-bulb temperature / relative humidity data was found in {file}.', { file: fileName }));
       return;
     }
 
@@ -589,14 +595,14 @@
     dl.textContent = '';
     if (!s) return;
     const entries = [
-      ['Name', s.name],
-      ['Region', s.region],
-      ['Country', s.country],
-      ['WMO', s.wmo],
-      ['Latitude', Number.isFinite(s.latitude) ? s.latitude.toFixed(2) + '°' : null],
-      ['Longitude', Number.isFinite(s.longitude) ? s.longitude.toFixed(2) + '°' : null],
-      ['Timezone', Number.isFinite(s.timezone) ? 'UTC' + (s.timezone >= 0 ? '+' : '') + s.timezone : null],
-      ['Elevation', Number.isFinite(s.elevation) ? s.elevation + ' m' : null]
+      [t('Name'), s.name],
+      [t('Region'), s.region],
+      [t('Country'), s.country],
+      [t('WMO'), s.wmo],
+      [t('Latitude'), Number.isFinite(s.latitude) ? s.latitude.toFixed(2) + '°' : null],
+      [t('Longitude'), Number.isFinite(s.longitude) ? s.longitude.toFixed(2) + '°' : null],
+      [t('Timezone'), Number.isFinite(s.timezone) ? 'UTC' + (s.timezone >= 0 ? '+' : '') + s.timezone : null],
+      [t('Elevation'), Number.isFinite(s.elevation) ? s.elevation + ' m' : null]
     ];
     entries.forEach((e) => {
       if (e[1] === undefined || e[1] === null || e[1] === '') return;
@@ -893,7 +899,7 @@
     ctx.font = '600 10px ' + font;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('Hours per cell', x0, y0 - 8);
+    ctx.fillText(t('Hours per cell'), x0, y0 - 8);
     for (let i = 0; i < n; i++) {
       const v = 1 + ((max - 1) * i) / (n - 1);
       ctx.fillStyle = 'rgba(' + COLORS.dataRgb + ',' + (0.12 + Math.sqrt(v / max) * 0.78).toFixed(3) + ')';
@@ -998,7 +1004,7 @@
         ctx.save();
         ctx.translate(s[0], s[1]);
         ctx.rotate(ang);
-        const lines = (state.morph > 0.5 && l0.textRh ? l0.textRh : l0.text).split('\n'); // shorter text in the RH chart
+        const lines = t(state.morph > 0.5 && l0.textRh ? l0.textRh : l0.text).split('\n'); // shorter text in the RH chart
         lines.forEach((ln, i) => {
           haloText(ln, 0, (i - (lines.length - 1) / 2) * 12, '#3b3f45', true);
         });
@@ -1029,14 +1035,14 @@
       if (major) ctx.fillText(String(t), x, plot.y1 + 8);
     }
     ctx.font = '600 11px ' + font;
-    ctx.fillText('Dry-bulb temperature (°C)', (plot.x0 + plot.x1) / 2, plot.y1 + 26);
+    ctx.fillText(t('Dry-bulb temperature (°C)'), (plot.x0 + plot.x1) / 2, plot.y1 + 26);
 
     ctx.save();
     ctx.globalAlpha = 1 - state.morph;
     ctx.translate(size.w - 12, (plot.y0 + plot.y1) / 2);
     ctx.rotate(Math.PI / 2);
     ctx.textBaseline = 'middle';
-    ctx.fillText('Humidity ratio (g/kg dry air)', 0, 0);
+    ctx.fillText(t('Humidity ratio (g/kg dry air)'), 0, 0);
     ctx.restore();
 
     if (state.morph > 0) { // RH chart: the RH values are labelled on the right, so only the axis title is drawn
@@ -1047,7 +1053,7 @@
       ctx.font = '600 11px ' + font;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Relative humidity (%)', 0, 0);
+      ctx.fillText(t('Relative humidity (%)'), 0, 0);
       ctx.restore();
     }
   };
@@ -1065,11 +1071,11 @@
   };
 
   const autoSubtitle = () => {
-    const parts = ['Atmospheric pressure ' + (state.pressure / 1000).toFixed(3) + ' kPa'];
-    if (state.comfort === 'pmv') parts.push('PMV comfort: ' + state.met + ' met, ' + state.clo + ' clo, ' + state.vel + ' m/s');
-    if (state.comfort === 'adaptive') parts.push('Adaptive comfort, mean outdoor ' + effectiveTOut().toFixed(1) + ' °C');
-    if (state.comfort === 'givoni') parts.push('Givoni bioclimatic zones');
-    if (state.station && state.station.name) parts.push(state.station.name + (state.month ? ' – ' + MONTHS[state.month] : ''));
+    const parts = [t('Atmospheric pressure {p} kPa', { p: (state.pressure / 1000).toFixed(3) })];
+    if (state.comfort === 'pmv') parts.push(t('PMV comfort: {met} met, {clo} clo, {vel} m/s', { met: state.met, clo: state.clo, vel: state.vel }));
+    if (state.comfort === 'adaptive') parts.push(t('Adaptive comfort, mean outdoor {t} °C', { t: effectiveTOut().toFixed(1) }));
+    if (state.comfort === 'givoni') parts.push(t('Givoni bioclimatic zones'));
+    if (state.station && state.station.name) parts.push(state.station.name + (state.month ? ' – ' + t(MONTHS[state.month]) : ''));
     return parts.join('  ·  ');
   };
 
@@ -1240,18 +1246,18 @@
     const ind = state.indicator;
     const pr = P.properties(ind.t, ind.w, state.pressure);
     const rows = [
-      ['Dry-bulb temp.', fmt(pr.dryBulb, 1) + ' °C'],
-      ['Relative humidity', fmt(pr.relativeHumidity * 100, 1) + ' %'],
-      ['Humidity ratio', fmt(pr.humidityRatio * 1000, 2) + ' g/kg'],
-      ['Wet-bulb temp.', fmt(pr.wetBulb, 1) + ' °C'],
-      ['Dew-point temp.', fmt(pr.dewPoint, 1) + ' °C'],
-      ['Vapour pressure', fmt(pr.vapourPressure / 1000, 3) + ' kPa'],
-      ['Abs. humidity', fmt(pr.absoluteHumidity, 2) + ' g/m³'],
-      ['Specific volume', fmt(pr.specificVolume, 4) + ' m³/kg'],
-      ['Enthalpy', fmt(pr.enthalpy, 2) + ' kJ/kg'],
-      ['Density', fmt(pr.density, 3) + ' kg/m³']
+      [t('Dry-bulb temp.'), fmt(pr.dryBulb, 1) + ' °C'],
+      [t('Relative humidity'), fmt(pr.relativeHumidity * 100, 1) + ' %'],
+      [t('Humidity ratio'), fmt(pr.humidityRatio * 1000, 2) + ' g/kg'],
+      [t('Wet-bulb temp.'), fmt(pr.wetBulb, 1) + ' °C'],
+      [t('Dew-point temp.'), fmt(pr.dewPoint, 1) + ' °C'],
+      [t('Vapour pressure'), fmt(pr.vapourPressure / 1000, 3) + ' kPa'],
+      [t('Abs. humidity'), fmt(pr.absoluteHumidity, 2) + ' g/m³'],
+      [t('Specific volume'), fmt(pr.specificVolume, 4) + ' m³/kg'],
+      [t('Enthalpy'), fmt(pr.enthalpy, 2) + ' kJ/kg'],
+      [t('Density'), fmt(pr.density, 3) + ' kg/m³']
     ];
-    let html = '<p class="readout-compact">' + fmt(ind.t, 1) + ' °C · ' + fmt(pr.relativeHumidity * 100, 0) + ' % RH</p><h2>Current conditions</h2><dl>';
+    let html = '<p class="readout-compact">' + fmt(ind.t, 1) + ' °C · ' + fmt(pr.relativeHumidity * 100, 0) + ' ' + t('% RH') + '</p><h2>' + t('Current conditions') + '</h2><dl>';
     rows.forEach((r) => {
       html += '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
     });
@@ -1260,19 +1266,19 @@
       const c = pmvAt(ind.t, ind.w);
       const ok = Math.abs(c.pmv) <= 0.5;
       html += '<div class="comfort-line"><dl><dt>PMV</dt><dd>' + fmt(c.pmv, 2) + '</dd><dt>PPD</dt><dd>' + fmt(c.ppd, 1) +
-        ' %</dd><dt>Sensation</dt><dd class="' + (ok ? 'ok' : 'bad') + '">' + C.sensationLabel(c.pmv) + '</dd></dl></div>';
+        ' %</dd><dt>' + t('Sensation') + '</dt><dd class="' + (ok ? 'ok' : 'bad') + '">' + C.sensationLabel(c.pmv) + '</dd></dl></div>';
     } else if (state.comfort === 'adaptive') {
       const a = C.adaptive(effectiveTOut());
       const in90 = ind.t >= a.limits90[0] && ind.t <= a.limits90[1];
       const in80 = ind.t >= a.limits80[0] && ind.t <= a.limits80[1];
-      html += '<div class="comfort-line"><dl><dt>Neutral temp.</dt><dd>' + fmt(a.neutral, 1) + ' °C</dd><dt>Acceptability</dt><dd class="' +
-        (in80 ? 'ok' : 'bad') + '">' + (in90 ? '90%' : in80 ? '80%' : 'Outside') + '</dd></dl></div>';
+      html += '<div class="comfort-line"><dl><dt>' + t('Neutral temp.') + '</dt><dd>' + fmt(a.neutral, 1) + ' °C</dd><dt>' + t('Acceptability') + '</dt><dd class="' +
+        (in80 ? 'ok' : 'bad') + '">' + (in90 ? '90%' : in80 ? '80%' : t('Outside')) + '</dd></dl></div>';
     } else if (state.comfort === 'givoni') {
       G.setMeanOutdoor(effectiveTOut());
       const strategies = G.classify(ind.t, ind.w, state.pressure);
       const comfy = strategies.some((z) => z.id === 'c');
-      html += '<div class="comfort-line"><dl><dt>Strategy</dt><dd class="' + (comfy ? 'ok' : '') + '">' +
-        strategies.map((z) => z.name).join(', ') + '</dd></dl></div>';
+      html += '<div class="comfort-line"><dl><dt>' + t('Strategy') + '</dt><dd class="' + (comfy ? 'ok' : '') + '">' +
+        strategies.map((z) => t(z.name)).join(', ') + '</dd></dl></div>';
       document.dispatchEvent(new CustomEvent('psychro:zones', { detail: { zones: strategies, t: ind.t, w: ind.w } }));
     }
     if (state.data && cache.bins && state.showData) { // data cell under the indicator
@@ -1282,13 +1288,13 @@
       if (state.morphTarget >= 0.5) { // RH chart: 1 °C x 5 % RH cells
         const ry = Math.min(Math.floor(clamp(pr.relativeHumidity * 100, 0, 100) / RH_STEP), 100 / RH_STEP - 1);
         count = (cache.rhBins || {})[cx + ':' + ry] || 0;
-        range = cx + '–' + (cx + 1) + ' °C, ' + ry * RH_STEP + '–' + (ry + 1) * RH_STEP + ' % RH';
+        range = cx + '–' + (cx + 1) + ' °C, ' + ry * RH_STEP + '–' + (ry + 1) * RH_STEP + ' ' + t('% RH');
       } else { // psychrometric chart: 1 °C x 1 g/kg cells
         const cy = Math.floor(ind.w * 1000);
         count = cache.bins[cx + ':' + cy] || 0;
         range = cx + '–' + (cx + 1) + ' °C, ' + cy + '–' + (cy + 1) + ' g/kg';
       }
-      html += '<div class="comfort-line"><dl><dt>Hours in this cell</dt><dd>' + count + '</dd><dt>Cell range</dt><dd>' + range + '</dd></dl></div>';
+      html += '<div class="comfort-line"><dl><dt>' + t('Hours in this cell') + '</dt><dd>' + count + '</dd><dt>' + t('Cell range') + '</dt><dd>' + range + '</dd></dl></div>';
     }
     $('readout-body').innerHTML = html;
 
@@ -1301,6 +1307,10 @@
 
   const renderPoints = () => {
     const list = $('points-list');
+    if (!state.points.length) {
+      list.innerHTML = `<li class="hint">${t("No process points yet.")}</li>`;
+      return;
+    }
     list.textContent = '';
     state.points.forEach((pt, i) => {
       const li = document.createElement('li');
@@ -1314,8 +1324,8 @@
       const input = document.createElement('input');
       input.type = 'text';
       input.value = pt.label;
-      input.placeholder = 'Point ' + (i + 1);
-      input.setAttribute('aria-label', 'Label for point ' + (i + 1));
+      input.placeholder = t('Point {n}', { n: i + 1 });
+      input.setAttribute('aria-label', t('Label for point {n}', { n: i + 1 }));
       input.addEventListener('input', () => {
         pt.label = input.value;
         scheduleRender();
@@ -1334,7 +1344,7 @@
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'btn icon';
-      del.setAttribute('aria-label', 'Remove point ' + (i + 1));
+      del.setAttribute('aria-label', t('Remove point {n}', { n: i + 1 }));
       del.textContent = '×';
       del.addEventListener('click', () => {
         removePoint(i);
@@ -1373,7 +1383,7 @@
     FAMILIES.forEach((fam) => {
       const tr = document.createElement('tr');
       const name = document.createElement('td');
-      name.textContent = fam.name;
+      name.textContent = t(fam.name);
       const unit = document.createElement('span');
       unit.className = 'unit';
       unit.textContent = fam.unit;
@@ -1383,7 +1393,7 @@
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = fam.show;
-      cb.setAttribute('aria-label', 'Show ' + fam.name + ' lines');
+      cb.setAttribute('aria-label', t('Show {name} lines', { name: lowerEs(t(fam.name)) }));
       cb.addEventListener('change', () => {
         fam.show = cb.checked;
         scheduleRender();
@@ -1395,7 +1405,7 @@
       radio.type = 'radio';
       radio.name = 'highlight';
       radio.value = fam.id;
-      radio.setAttribute('aria-label', 'Highlight ' + fam.name + ' lines');
+      radio.setAttribute('aria-label', t('Highlight {name} lines', { name: lowerEs(t(fam.name)) }));
       radio.addEventListener('change', () => {
         state.highlight = fam.id;
         if (!fam.show) {
@@ -1414,7 +1424,7 @@
 
     const tr = document.createElement('tr');
     const nameTd = document.createElement('td');
-    nameTd.textContent = 'None';
+    nameTd.textContent = t('None');
     const empty = document.createElement('td');
     const hlTd = document.createElement('td');
     const none = document.createElement('input');
@@ -1422,7 +1432,7 @@
     none.name = 'highlight';
     none.value = '';
     none.checked = true;
-    none.setAttribute('aria-label', 'No highlight');
+    none.setAttribute('aria-label', t('No highlight'));
     none.addEventListener('change', () => {
       state.highlight = null;
       scheduleRender();
@@ -1490,7 +1500,7 @@
     const b = $('readout-toggle');
     b.textContent = on ? '+' : '−';
     b.setAttribute('aria-expanded', String(!on));
-    b.setAttribute('aria-label', on ? 'Expand current conditions' : 'Minimize current conditions');
+    b.setAttribute('aria-label', t(on ? 'Expand current conditions' : 'Minimize current conditions'));
   };
 
   const syncChartType = () => {
@@ -1699,7 +1709,7 @@
       code.style.color = 'rgb(' + gz.rgb + ')';
       code.textContent = gz.code;
       const name = document.createElement('span');
-      name.textContent = gz.name;
+      name.textContent = t(gz.name);
       label.appendChild(cb);
       label.appendChild(swatch);
       label.appendChild(code);
@@ -1844,9 +1854,9 @@
   };
 
   const exportRows = () => {
-    const rows = [{ name: 'Indicator', t: state.indicator.t, w: state.indicator.w }];
+    const rows = [{ name: t('Indicator'), t: state.indicator.t, w: state.indicator.w }];
     state.points.forEach((pt, i) => {
-      rows.push({ name: pt.label || 'Point ' + (i + 1), t: pt.t, w: pt.w });
+      rows.push({ name: pt.label || t('Point {n}', { n: i + 1 }), t: pt.t, w: pt.w });
     });
     return rows.map((r) => {
       const pr = P.properties(r.t, r.w, state.pressure);
@@ -1921,11 +1931,26 @@
   /* Init                                                              */
   /* ---------------------------------------------------------------- */
 
+  $('title').value = state.title;
   renderMetricsTable();
   renderPoints();
   renderGivoniZones();
   syncComfortControls();
   rebuild();
+
+  // Language change: translate everything the scripts build dynamically
+  document.addEventListener('i18n:change', (e) => {
+    if (state.title === I18n.tIn(e.detail.previous, 'Psychrometric Chart')) { // still the default title
+      state.title = t('Psychrometric Chart');
+      $('title').value = state.title;
+    }
+    renderMetricsTable();
+    renderPoints();
+    renderGivoniZones();
+    renderStation();
+    setReadoutMin($('readout').classList.contains('min'));
+    rebuild();
+  });
 
   if (window.ResizeObserver) {
     new ResizeObserver(resize).observe($('chart-wrap'));

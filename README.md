@@ -16,6 +16,7 @@ psychro/
     ├── app.js             chart rendering, interaction and UI
     ├── comfort.js         PMV/PPD (ISO 7730) and adaptive comfort (ASHRAE 55)
     ├── givoni.js          Givoni bioclimatic zone definitions
+    ├── i18n.js            interface translations (Spanish by default, English)
     ├── psychrometrics.js  moist-air property equations (uses PsychroLib when loaded)
     ├── sidebar.js         collapsible left Controls sidebar
     ├── strategies.js      right-hand Strategies sidebar
@@ -42,6 +43,7 @@ psychro/
 - "From weather data" for the mean outdoor temperature shows the value being used in the text box
 - Hovering the chart in Givoni mode highlights every zone under the pointer
 - The Current conditions box has a minimize/expand button and is minimized automatically in the RH chart (it shows a one-line summary)
+- Spanish interface by default, with a language radio button (Idioma / Language) at the top of the Controls sidebar to switch to English; the choice is remembered in the browser. Everything is translated: sidebar, chart text and zone labels, readout, statistics, Strategies sidebar and the names written to exports (CSV and JSON column names stay in English)
 - Export to PNG, CSV or JSON
 
 ## Givoni bioclimatic chart
@@ -58,6 +60,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Strategy text: `TEXT` table at the top of `js/strategies.js` (currently placeholders)
 - Mean outdoor temperature slope: `setMeanOutdoor()` in `js/givoni.js` (0.31 °C per °C)
 - RH chart cell height: `RH_STEP` in `js/app.js` (currently 2)
+- Translations: the `ES` dictionary in `js/i18n.js`; the English text is the key, so a string without a translation stays in English. The default language is `DEFAULT_LANG` in the same file
 
 ## Notes
 
@@ -75,6 +78,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - All project scripts (`app.js`, `comfort.js`, `givoni.js`, `psychrometrics.js`, `sidebar.js`, `strategies.js`) use `const`/`let` and arrow functions: there is no `var` and no `function` keyword left (functions are `const name = (...) => ...`, so a function must be defined above the code that calls it at load time). The vendored `js/vendor/psychrolib.js` is unchanged
 - Visually hidden inputs are anchored to their own control (`.file-btn`, `.sidebar` and `.strategies` are `position: relative`). Previously the hidden file input sat far below the viewport, so clicking "Load EPW / CSV…" scrolled the whole page
 - The Design strategies list is a tidy grid with a checkbox, colour swatch, code and name per zone; unticked zones are dimmed
+- Static text and attributes in `index.html` are translated in place; containers that scripts fill (readout, points, station, statistics, zone list, Strategies sidebar) carry `data-i18n-skip` and are re-rendered when the language changes. New user-visible text should go through `t('English text')`
 
 ## Limitations
 

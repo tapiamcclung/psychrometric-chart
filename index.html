@@ -20,6 +20,12 @@
           <p>Interactive moist-air properties &amp; thermal comfort</p>
         </header>
 
+        <fieldset class="lang-switch">
+          <legend>Language</legend>
+          <label><input type="radio" name="lang" value="es" checked /> Español</label>
+          <label><input type="radio" name="lang" value="en" /> English</label>
+        </fieldset>
+
         <details class="panel" open>
           <summary>Chart type</summary>
           <div class="panel-body">
@@ -78,7 +84,7 @@
 
             <fieldset id="givoni-controls" class="zone-list" hidden>
               <legend class="field-label">Design strategies</legend>
-              <div id="givoni-zones"></div>
+              <div id="givoni-zones" data-i18n-skip></div>
             </fieldset>
 
             <div id="pmv-controls" class="grid-2">
@@ -111,7 +117,7 @@
               </label>
             </div>
 
-            <p id="comfort-note" class="hint"></p>
+            <p id="comfort-note" data-i18n-skip class="hint"></p>
           </div>
         </details>
 
@@ -126,7 +132,7 @@
                   <th scope="col">Highlight</th>
                 </tr>
               </thead>
-              <tbody id="metrics-body"></tbody>
+              <tbody id="metrics-body" data-i18n-skip></tbody>
             </table>
           </div>
         </details>
@@ -138,7 +144,7 @@
               <button type="button" id="add-point" class="btn primary">Add point</button>
               <button type="button" id="clear-points" class="btn">Clear</button>
             </div>
-            <ol id="points-list" class="points"></ol>
+            <ol id="points-list" data-i18n-skip class="points"></ol>
             <p class="hint">Click a point on the chart to select and drag it. Press Delete to remove the selected point.</p>
           </div>
         </details>
@@ -152,7 +158,7 @@
             </label>
             <p class="hint">Or drop a file anywhere on the page. CSV files need dry-bulb temperature and relative humidity columns (an optional month column enables filtering).</p>
             <div id="station" class="station" hidden>
-              <dl id="station-info"></dl>
+              <dl id="station-info" data-i18n-skip></dl>
               <label class="field">
                 <span class="field-label">Period</span>
                 <select id="month">
@@ -175,7 +181,7 @@
                 <input type="checkbox" id="show-data" checked />
                 <span>Show hourly frequency overlay</span>
               </label>
-              <p id="data-stats" class="stats"></p>
+              <p id="data-stats" data-i18n-skip class="stats"></p>
               <button type="button" id="clear-data" class="btn">Remove data</button>
             </div>
           </div>
@@ -237,7 +243,7 @@
           <canvas id="chart" tabindex="0" role="img" aria-label="Interactive psychrometric chart"></canvas>
           <div id="readout" class="readout">
             <button type="button" id="readout-toggle" class="readout-toggle" aria-expanded="true" aria-controls="readout-body" aria-label="Minimize current conditions">−</button>
-            <div id="readout-body" aria-live="polite"></div>
+            <div id="readout-body" data-i18n-skip aria-live="polite"></div>
           </div>
           <div id="drop-overlay" class="drop-overlay" hidden>Drop EPW or CSV file to load</div>
         </div>
@@ -251,11 +257,12 @@
         </button>
         <div id="strategies-body" class="strategies-body" hidden>
           <h2>Design strategies</h2>
-          <p id="strategies-sub" class="hint"></p>
-          <div id="strategies-list"></div>
+          <p id="strategies-sub" data-i18n-skip class="hint"></p>
+          <div id="strategies-list" data-i18n-skip></div>
         </div>
       </aside>
     </div>
+    <script src="js/i18n.js"></script>
 
     <script src="js/vendor/psychrolib.js"></script>
     <script src="js/psychrometrics.js"></script>

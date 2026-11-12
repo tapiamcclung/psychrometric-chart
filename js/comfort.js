@@ -79,13 +79,13 @@
 
   const sensationLabel = (value) => {
     if (!Number.isFinite(value)) return '—';
-    if (value <= -2.5) return 'Cold';
-    if (value <= -1.5) return 'Cool';
-    if (value <= -0.5) return 'Slightly cool';
-    if (value < 0.5) return 'Neutral';
-    if (value < 1.5) return 'Slightly warm';
-    if (value < 2.5) return 'Warm';
-    return 'Hot';
+    if (value <= -2.5) return I18n.t('Cold');
+    if (value <= -1.5) return I18n.t('Cool');
+    if (value <= -0.5) return I18n.t('Slightly cool');
+    if (value < 0.5) return I18n.t('Neutral');
+    if (value < 1.5) return I18n.t('Slightly warm');
+    if (value < 2.5) return I18n.t('Warm');
+    return I18n.t('Hot');
   };
 
   global.Comfort = {

@@ -37,31 +37,39 @@
     chev.textContent = open ? '›' : '‹';
   };
 
-  const message = (text) => {
+  const t = (key, vars) => I18n.t(key, vars);
+  let last = null;      // the zones, temperature and humidity shown last (re-rendered when the language changes)
+  let idle = 'choose';  // which hint to show when there are no strategy cards: 'choose' or 'click'
+  const hint = () => t(idle === 'click'
+    ? 'Click the chart to see strategies for that point.'
+    : 'Choose “Givoni bioclimatic chart” under Comfort overlay, then click the chart to see strategies for that point.');
+
+  const message = () => {
     list.textContent = '';
     const p = document.createElement('p');
     p.className = 'hint';
-    p.textContent = text;
+    p.textContent = hint();
     list.appendChild(p);
   };
 
-  const render = (zones, t, w) => {
-    sub.textContent = t.toFixed(1) + ' °C, ' + (w * 1000).toFixed(1) + ' g/kg';
+  const render = (zones, temp, w) => {
+    last = { zones, temp, w };
+    sub.textContent = temp.toFixed(1) + ' °C, ' + (w * 1000).toFixed(1) + ' g/kg';
     badge.textContent = String(zones.length);   // the panel stays closed; the tab shows how many strategies apply
     badge.hidden = false;
-    toggle.title = zones.length + (zones.length === 1 ? ' strategy' : ' strategies') + ' for the selected point';
+    toggle.title = t(zones.length === 1 ? '1 strategy for the selected point' : '{n} strategies for the selected point', { n: zones.length });
     list.textContent = '';
     zones.forEach((z) => {
       const card = document.createElement('section');
       card.className = 'strategy';
       card.style.borderLeftColor = 'rgb(' + z.rgb + ')';
       const h = document.createElement('h3');
-      h.textContent = z.name;
+      h.textContent = t(z.name);
       card.appendChild(h);
       const ul = document.createElement('ul');
       ((TEXT[z.id] || { tips: ['Placeholder text.'] }).tips).forEach((tip) => {
         const li = document.createElement('li');
-        li.textContent = tip;
+        li.textContent = t(tip);
         ul.appendChild(li);
       });
       card.appendChild(ul);
@@ -77,12 +85,23 @@
 
   model.addEventListener('change', () => {
     sub.textContent = '';
-    if (model.value !== 'givoni') badge.hidden = true;
-    if (model.value !== 'givoni') message('Choose “Givoni bioclimatic chart” under Comfort overlay, then click the chart to see strategies for that point.');
-    else if (!list.querySelector('.strategy')) message('Click the chart to see strategies for that point.');
+    if (model.value !== 'givoni') {
+      badge.hidden = true;
+      last = null;
+      idle = 'choose';
+      message();
+    } else if (!list.querySelector('.strategy')) {
+      idle = 'click';
+      message();
+    }
+  });
+
+  document.addEventListener('i18n:change', () => {
+    if (last && model.value === 'givoni') render(last.zones, last.temp, last.w);
+    else message();
   });
 
   setOpen(false);
-  message(model.value === 'givoni' ? 'Click the chart to see strategies for that point.'
-    : 'Choose “Givoni bioclimatic chart” under Comfort overlay, then click the chart to see strategies for that point.');
+  idle = model.value === 'givoni' ? 'click' : 'choose';
+  message();
 })();
