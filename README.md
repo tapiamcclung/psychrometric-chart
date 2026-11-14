@@ -27,7 +27,11 @@ psychro/
 ## Features
 
 - Psychrometric chart with an animated transition to a relative humidity chart
-- Lines for dry-bulb, humidity ratio, relative humidity, wet-bulb, vapour pressure, specific volume and enthalpy, which you can toggle or highlight
+- Lines for dry-bulb, humidity ratio, relative humidity, wet-bulb, vapour pressure, specific volume and enthalpy, which you can toggle or highlight. Switching a metric off also removes its axis: the dry-bulb ticks, numbers and title, the humidity ratio and RH titles, and the tick labels and axis title of the other metrics
+- Axis titles with units for wet-bulb, vapour pressure, specific volume and enthalpy. Wet-bulb and enthalpy follow the saturation curve; a title that would overlap a tick label, another title, the Current conditions box, or the mean outdoor temperature line and its label slides along the curve (then tries a second offset) and is skipped only if nothing is free; the highlighted metric gets first pick of the space. Vapour pressure and specific volume sit with the other titles of their axis: specific volume next to the dry-bulb title along the bottom, vapour pressure next to the humidity ratio (or RH) title on the right. The titles of one axis are laid side by side and the group is centred on the axis, whether one or two are shown, so the chart does not change size
+- Lines, tick labels and axis titles of wet-bulb, vapour pressure, specific volume and enthalpy share one colour per metric (major lines stronger than minor). Wet-bulb and enthalpy tick labels slide left if they would touch the mean outdoor temperature line or its label, and are hidden if there is no room
+- Specific volume lines are drawn at 0.01 m³/kg from the lowest to the highest value inside the chart at the current pressure and axis ranges, so they fill the chart at any elevation or after loading a weather file. Labels of lines that leave through the right edge are placed inside the chart
+- The right-hand axis titles (humidity ratio, or relative humidity in the RH chart) sit just outside their numbers
 - Draggable indicator that shows the full set of moist-air properties
 - PMV comfort zones (ISO 7730 categories I/II/III) based on met, clo, air velocity and radiant offset
 - ASHRAE 55 adaptive comfort bands (80% / 90% acceptability)
@@ -60,6 +64,7 @@ Choose "Givoni bioclimatic chart" under Comfort overlay. Each zone can be toggle
 - Strategy text: `TEXT` table at the top of `js/strategies.js` (currently placeholders)
 - Mean outdoor temperature slope: `setMeanOutdoor()` in `js/givoni.js` (0.31 °C per °C)
 - RH chart cell height: `RH_STEP` in `js/app.js` (currently 2)
+- Axis title text, colour and preferred position per metric: the `FAMILIES` table at the top of `js/app.js` (`title`, `color`, `axis`); the offsets the sliding titles try are in `axisPath()`
 - Translations: the `ES` dictionary in `js/i18n.js`; the English text is the key, so a string without a translation stays in English. The default language is `DEFAULT_LANG` in the same file
 
 ## Notes

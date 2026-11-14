@@ -30,11 +30,16 @@
     { id: 'dbt', name: 'Dry-bulb temp.', unit: '°C', show: true },
     { id: 'w', name: 'Humidity ratio', unit: 'g/kg', show: true },
     { id: 'rh', name: 'Relative humidity', unit: '%', show: true },
-    { id: 'wbt', name: 'Wet-bulb temp.', unit: '°C', show: false },
-    { id: 'pv', name: 'Vapour pressure', unit: 'kPa', show: false },
-    { id: 'v', name: 'Specific volume', unit: 'm³/kg', show: false },
-    { id: 'h', name: 'Enthalpy', unit: 'kJ/kg', show: false }
+    // color tints the lines, tick labels and axis title; axis.where: 'sat' = the title follows the saturation curve (pref = preferred spot, 0-1 along it), 'outside' = title in its own lane outside the chart
+    { id: 'wbt', name: 'Wet-bulb temp.', unit: '°C', show: false, color: '#1d4ed8', title: 'Wet-bulb temperature (°C)', axis: { where: 'sat', pref: 0.3 } },
+    { id: 'pv', name: 'Vapour pressure', unit: 'kPa', show: false, color: '#7e22ce', title: 'Vapour pressure (kPa)', axis: { where: 'outside' } },
+    { id: 'v', name: 'Specific volume', unit: 'm³/kg', show: false, color: '#4d7c0f', title: 'Specific volume (m³/kg dry air)', axis: { where: 'outside' } },
+    { id: 'h', name: 'Enthalpy', unit: 'kJ/kg', show: false, color: '#9a3412', title: 'Enthalpy (kJ/kg dry air)', axis: { where: 'sat', pref: 0.7 } }
   ];
+
+  const famShown = (id) => FAMILIES.some((f) => f.id === id && f.show);
+  const famById = (id) => FAMILIES.find((f) => f.id === id);
+  const tint = (hex, a) => 'rgba(' + parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16) + ',' + a + ')';
 
   const state = {
     tMin: 0,
@@ -69,6 +74,7 @@
   const size = { w: 0, h: 0, dpr: 1 };
   const plot = { x0: 0, y0: 0, x1: 0, y1: 0 };
   const cache = { valid: [], comfort: [], bins: null, binMax: 0, stats: null };
+  const labelBoxes = []; // boxes of the tick labels drawn this frame, so axis titles can keep clear of them
   let renderQueued = false;
   let drag = null;
 
@@ -261,7 +267,10 @@
       })(pv);
     }
 
-    for (let vi = 70; vi <= 110; vi++) {
+    // from the lowest volume in the chart (bottom-left) to the highest (top-right corner), so the range follows pressure and axis limits
+    const vLo = Math.floor(P.specificVolume(state.tMin, 0, p) * 100);
+    const vHi = Math.ceil(P.specificVolume(state.tMax, Math.min(P.wSat(state.tMax, p), state.wMax / 1000), p) * 100);
+    for (let vi = vLo; vi <= vHi; vi++) {
       ((vv) => {
         const v = vv / 100;
         const major = vv % 5 === 0;
@@ -665,6 +674,7 @@
 
     order.forEach((fam) => {
       const isHl = fam.id === hl;
+      const tints = fam.color ? { major: tint(fam.color, 0.7), minor: tint(fam.color, 0.35) } : null;
       ctx.globalAlpha = hl && !isHl ? 0.4 : 1;
       fam.lines.forEach((line) => {
         line._s = screenPts(line.pts);
@@ -683,6 +693,7 @@
             ctx.strokeStyle = '#8b949d';
             ctx.lineWidth = 0.9;
           }
+          if (tints) ctx.strokeStyle = line.major ? tints.major : tints.minor;
         }
         ctx.stroke();
       });
@@ -705,13 +716,116 @@
     return { x: s[0][0], y: s[0][1], top: false };
   };
 
+  /* Axis titles for wet-bulb, vapour pressure, specific volume and enthalpy. Each title follows the curve its tick
+     labels sit on, offset away from them. If it would overlap a tick label or another title it slides along the curve,
+     then tries a second offset, and is skipped only if nothing is free. */
+  const pathSampler = (pts) => {
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const total = cum[cum.length - 1];
+    const at = (d) => {
+      d = clamp(d, 0, total);
+      let i = 1;
+      while (i < pts.length - 1 && cum[i] < d) i++;
+      const f = (d - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+      return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f];
+    };
+    return { total: total, at: at };
+  };
+
+  const axisPath = () => {
+    const flip = state.morph > 0.5; // RH chart: the saturation curve is the top edge, so the title goes just below it
+    return { pts: screenPts(cache.saturation).filter((s) => insidePlot(s, 0)), off: flip ? [12, 26] : [22, 36], flip: flip };
+  };
+
+  // The dotted mean outdoor temperature line (Givoni chart) and its rotated label, as boxes other labels keep clear of.
+  const meanOutdoorBoxes = () => {
+    const gz = G.zones.find((z) => z.id === 'tmo');
+    if (state.comfort !== 'givoni' || !gz || !gz.show) return [];
+    const tm = effectiveTOut();
+    const ws = P.wSat(tm, state.pressure);
+    const x = toScreen(tm, 0)[0];
+    const top = toScreen(tm, ws + 0.002)[1];
+    const c = toScreen(tm - 0.3, ws + 0.0012);
+    ctx.font = '600 10px ' + getComputedStyle(document.body).fontFamily;
+    const len = ctx.measureText(tm.toFixed(1) + ' °C').width + 4;
+    return [{ x: x - 3, y: top, w: 6, h: plot.y1 - top }, { x: c[0] - 8, y: c[1] - len / 2, w: 16, h: len }];
+  };
+
+  // The text as a chain of small boxes along its direction, so rotated titles are tested against labels fairly closely.
+  const titleBoxes = (cx, cy, ang, w, h) => {
+    const n = Math.max(2, Math.ceil(w / 12));
+    const seg = w / n;
+    const hx = (Math.abs(Math.cos(ang)) * seg + Math.abs(Math.sin(ang)) * h) / 2;
+    const hy = (Math.abs(Math.sin(ang)) * seg + Math.abs(Math.cos(ang)) * h) / 2;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const d = -w / 2 + (i + 0.5) * seg;
+      out.push({ x: cx + Math.cos(ang) * d - hx, y: cy + Math.sin(ang) * d - hy, w: hx * 2, h: hy * 2 });
+    }
+    return out;
+  };
+
+  const boxesOverlap = (a, b) => a.x < b.x + b.w + 2 && a.x + a.w + 2 > b.x && a.y < b.y + b.h + 1 && a.y + a.h + 1 > b.y;
+
+  const drawAxisTitles = () => {
+    const hl = state.highlight;
+    const taken = labelBoxes.concat(meanOutdoorBoxes());
+    const ro = $('readout').getBoundingClientRect(); // the Current conditions box floats over the chart
+    const cr = canvas.getBoundingClientRect();
+    if (ro.width > 0) taken.push({ x: ro.left - cr.left - 4, y: ro.top - cr.top - 4, w: ro.width + 8, h: ro.height + 8 });
+    const order = FAMILIES.filter((f) => f.show && f.axis && f.axis.where === 'sat' && f.id !== hl);
+    const hlFam = FAMILIES.find((f) => f.id === hl && f.show && f.axis && f.axis.where === 'sat');
+    if (hlFam) order.unshift(hlFam); // the highlighted family gets first pick of the free space
+    ctx.font = '600 10px ' + getComputedStyle(document.body).fontFamily;
+    order.forEach((fam) => {
+      const text = t(fam.title);
+      const w = ctx.measureText(text).width + 4;
+      const path = axisPath();
+      if (path.pts.length < 2) return;
+      const sm = pathSampler(path.pts);
+      if (sm.total < w) return;
+      const deltas = [0];
+      for (let d = 10; d < sm.total; d += 10) deltas.push(d, -d);
+      let found = null;
+      path.off.some((off) => deltas.some((dd) => {
+        const c = fam.axis.pref * sm.total + dd;
+        if (c - w / 2 < 0 || c + w / 2 > sm.total) return false;
+        const p0 = sm.at(c - w / 2);
+        const p1 = sm.at(c + w / 2);
+        const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
+        const mid = sm.at(c);
+        const side = path.flip ? -1 : 1;
+        const cx = mid[0] + Math.sin(ang) * off * side;
+        const cy = mid[1] - Math.cos(ang) * off * side;
+        const boxes = titleBoxes(cx, cy, ang, w, 11);
+        const inside = boxes.every((b) => b.x >= plot.x0 && b.x + b.w <= plot.x1 && b.y >= plot.y0 && b.y + b.h <= plot.y1);
+        if (!inside || boxes.some((b) => taken.some((o) => boxesOverlap(b, o)))) return false;
+        found = { cx: cx, cy: cy, ang: ang, boxes: boxes };
+        return true;
+      }));
+      if (!found) return;
+      found.boxes.forEach((b) => taken.push(b));
+      ctx.save();
+      ctx.globalAlpha = hl && hl !== fam.id ? 0.5 : 1;
+      ctx.translate(found.cx, found.cy);
+      ctx.rotate(Math.abs(found.ang) > Math.PI / 2 + 1e-9 ? found.ang + Math.PI : found.ang); // never upside down
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      haloText(text, 0, 0, fam.id === hl ? COLORS.accent : fam.color, true);
+      ctx.restore();
+    });
+  };
+
   const drawFamilyLabels = () => {
     const hl = state.highlight;
+    labelBoxes.length = 0;
+    const avoid = meanOutdoorBoxes();
     ctx.textBaseline = 'middle';
     FAMILIES.forEach((fam) => {
       if (!fam.show || fam.id === 'dbt') return;
       const isHl = fam.id === hl;
-      const color = isHl ? COLORS.accent : COLORS.muted;
+      const color = isHl ? COLORS.accent : fam.color || COLORS.muted;
       const baseAlpha = hl && !isHl ? 0.5 : 1;
       const placed = [];
       fam.lines.forEach((line) => {
@@ -760,6 +874,10 @@
           align = 'right';
           lx = x - 4;
           ly = y - 6;
+        } else if (x > plot.x1 - 1) { // line leaves through the right edge: label inside, clear of the g/kg numbers
+          align = 'right';
+          lx = x - 4;
+          ly = y - 7;
         } else {
           align = 'left';
           lx = x + 3;
@@ -767,16 +885,26 @@
         }
         ctx.font = (isHl ? '600 ' : '') + '10px ' + getComputedStyle(document.body).fontFamily;
         const width = ctx.measureText(line.label).width + 4;
-        const left = align === 'right' ? lx - width : align === 'center' ? lx - width / 2 : lx;
+        let left = align === 'right' ? lx - width : align === 'center' ? lx - width / 2 : lx;
+        if (line.anchor === 'start' && avoid.length) { // wet-bulb and enthalpy: slide left until clear of the mean outdoor line and its label
+          const hit = () => avoid.find((o) => left < o.x + o.w + 2 && left + width + 2 > o.x && ly - 6 < o.y + o.h && ly + 6 > o.y);
+          const home = left;
+          for (let k = 0; k < 4 && hit(); k++) left = hit().x - width - 3;
+          if (hit()) return;
+          lx = left + width; // these labels are right-aligned
+          if (left !== home && labelBoxes.some((o) => left < o.x + o.w + 1 && left + width + 1 > o.x && ly - 6 < o.y + o.h && ly + 6 > o.y)) return; // moved onto another label: drop it
+        }
         const slack = line.anchor === 'rh' ? 6 : 0; // neighbouring RH labels along the top may overlap slightly
         const collides = placed.some((b) => left < b.x + b.w - slack && left + width > b.x + slack && Math.abs(ly - b.y) < 11);
         if (collides) return;
         placed.push({ x: left, y: ly, w: width });
+        labelBoxes.push({ x: left, y: ly - 6, w: width, h: 12 });
         ctx.textAlign = align;
         haloText(line.label, lx, ly, color, isHl);
       });
       ctx.globalAlpha = 1;
     });
+    drawAxisTitles();
   };
 
   const drawData = () => {
@@ -1023,39 +1151,70 @@
     ctx.fillStyle = COLORS.ink;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const range = state.tMax - state.tMin;
-    const step = range > 80 ? 10 : 5;
-    for (let t = Math.ceil(state.tMin); t <= state.tMax; t++) {
-      const x = toScreen(t, 0)[0];
-      const major = t % step === 0;
-      ctx.beginPath();
-      ctx.moveTo(x, plot.y1);
-      ctx.lineTo(x, plot.y1 + (major ? 6 : 3));
-      ctx.stroke();
-      if (major) ctx.fillText(String(t), x, plot.y1 + 8);
+    if (famShown('dbt')) { // ticks, numbers and title belong to the dry-bulb metric
+      const range = state.tMax - state.tMin;
+      const step = range > 80 ? 10 : 5;
+      for (let t = Math.ceil(state.tMin); t <= state.tMax; t++) {
+        const x = toScreen(t, 0)[0];
+        const major = t % step === 0;
+        ctx.beginPath();
+        ctx.moveTo(x, plot.y1);
+        ctx.lineTo(x, plot.y1 + (major ? 6 : 3));
+        ctx.stroke();
+        if (major) ctx.fillText(String(t), x, plot.y1 + 8);
+      }
     }
+
+    // Axis titles. The titles of one axis (dry-bulb + specific volume at the bottom, humidity ratio or RH + vapour pressure
+    // on the right) sit side by side as a group centred on the axis, so one or two are always balanced.
     ctx.font = '600 11px ' + font;
-    ctx.fillText(t('Dry-bulb temperature (°C)'), (plot.x0 + plot.x1) / 2, plot.y1 + 26);
-
-    ctx.save();
-    ctx.globalAlpha = 1 - state.morph;
-    ctx.translate(size.w - 12, (plot.y0 + plot.y1) / 2);
-    ctx.rotate(Math.PI / 2);
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(t('Humidity ratio (g/kg dry air)'), 0, 0);
-    ctx.restore();
+    const GAP = 28;
+    const spread = (items, mid) => { // centre of each title along the axis, the whole group centred on mid
+      const ws = items.map((it) => ctx.measureText(it.text).width);
+      let pos = mid - (ws.reduce((sum, w) => sum + w, 0) + GAP * (items.length - 1)) / 2;
+      return items.map((it, k) => {
+        const c = pos + ws[k] / 2;
+        pos += ws[k] + GAP;
+        return c;
+      });
+    };
+    const item = (id, text, alpha) => ({ text: t(text), color: id ? famById(id).color : COLORS.ink, alpha: alpha });
 
-    if (state.morph > 0) { // RH chart: the RH values are labelled on the right, so only the axis title is drawn
+    const bottom = [];
+    if (famShown('dbt')) bottom.push(item(null, 'Dry-bulb temperature (°C)', 1));
+    if (famShown('v')) bottom.push(item('v', famById('v').title, 1));
+    spread(bottom, (plot.x0 + plot.x1) / 2).forEach((c, k) => {
+      ctx.fillStyle = bottom[k].color;
+      ctx.fillText(bottom[k].text, c, plot.y1 + 32);
+    });
+
+    // Right axis: just outside the widest number of the axis (g/kg numbers, or "100%" in the RH chart). Both the humidity ratio
+    // and RH titles cross-fade; the vapour pressure title joins whichever of the two is showing.
+    const rightX = (widest) => {
       ctx.save();
-      ctx.globalAlpha = state.morph;
-      ctx.translate(size.w - 12, (plot.y0 + plot.y1) / 2);
-      ctx.rotate(Math.PI / 2);
-      ctx.font = '600 11px ' + font;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(t('Relative humidity (%)'), 0, 0);
+      ctx.font = '10px ' + font;
+      const x = Math.min(plot.x1 + 6 + ctx.measureText(widest).width + 14, size.w - 8);
       ctx.restore();
-    }
+      return x;
+    };
+    const rhView = state.morph > 0.5;
+    [['w', 'Humidity ratio (g/kg dry air)', String(state.wMax), 1 - state.morph], ['rh', 'Relative humidity (%)', '100%', state.morph]].forEach((ax) => {
+      const items = [];
+      if (famShown(ax[0]) && ax[3] > 0) items.push(item(null, ax[1], ax[3]));
+      if (famShown('pv') && (ax[0] === 'rh') === rhView) items.push(item('pv', famById('pv').title, 1));
+      const x = famShown(ax[0]) ? rightX(ax[2]) : plot.x1 + 14;
+      spread(items, (plot.y0 + plot.y1) / 2).forEach((c, k) => {
+        ctx.save();
+        ctx.globalAlpha = items[k].alpha;
+        ctx.translate(x, c);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillStyle = items[k].color;
+        ctx.fillText(items[k].text, 0, 0);
+        ctx.restore();
+      });
+    });
   };
 
   const drawTitle = () => {
